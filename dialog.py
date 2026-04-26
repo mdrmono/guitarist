@@ -16,12 +16,14 @@ from aqt.qt import (  # type: ignore
     QHBoxLayout,
     QLabel,
     QListWidget,
+    QListWidgetItem,
     QPainter,
     QPen,
     QPlainTextEdit,
     QPushButton,
     QRectF,
     QTabWidget,
+    QTextCursor,
     Qt,
     QVBoxLayout,
     QWidget,
@@ -30,13 +32,11 @@ from aqt.utils import qconnect, showInfo, showWarning, tooltip  # type: ignore
 
 from .anki_integration import (
     AddChordsResult,
-    RefreshExistingResult,
     add_chord_notes,
     preview_inputs,
-    refresh_existing_notes,
     refresh_existing_notetype,
 )
-from .chords import Voicing, lookup_voicing, parse_chord_inputs
+from .chords import Voicing, lookup_voicing, parse_chord_inputs, suggest_chords
 
 
 def _align_center() -> Any:
@@ -47,6 +47,16 @@ def _align_center() -> Any:
 def _antialiasing() -> Any:
     render_hint = getattr(QPainter, "RenderHint", QPainter)
     return getattr(render_hint, "Antialiasing")
+
+
+def _keep_anchor() -> Any:
+    move_mode = getattr(QTextCursor, "MoveMode", QTextCursor)
+    return getattr(move_mode, "KeepAnchor")
+
+
+def _user_role() -> Any:
+    item_role = getattr(Qt, "ItemDataRole", Qt)
+    return getattr(item_role, "UserRole")
 
 
 class ChordPreviewWidget(QWidget):
@@ -243,6 +253,11 @@ class ChordGeneratorDialog(QDialog):
         self.input.setFixedHeight(92)
         controls_layout.addWidget(self.input)
 
+        controls_layout.addWidget(QLabel("Suggestions"))
+        self.suggestions = QListWidget()
+        self.suggestions.setFixedHeight(104)
+        controls_layout.addWidget(self.suggestions)
+
         self.summary = QLabel("")
         self.summary.setObjectName("Subtitle")
         controls_layout.addWidget(self.summary)
@@ -287,9 +302,55 @@ class ChordGeneratorDialog(QDialog):
         layout.addLayout(button_row)
 
         qconnect(self.input.textChanged, self.refresh_preview)
+        qconnect(self.input.cursorPositionChanged, self.refresh_suggestions)
+        qconnect(self.suggestions.itemClicked, self.accept_suggestion)
+        qconnect(self.suggestions.itemActivated, self.accept_suggestion)
         qconnect(self.create_button.clicked, self.create_notes)
         qconnect(cancel_button.clicked, self.reject)
 
+        self.refresh_preview()
+
+    def _current_token_bounds(self) -> tuple[int, int, str]:
+        text = self.input.toPlainText()
+        cursor_position = self.input.textCursor().position()
+        start = cursor_position
+        while start > 0 and text[start - 1] not in ",;\n":
+            start -= 1
+        end = cursor_position
+        while end < len(text) and text[end] not in ",;\n":
+            end += 1
+
+        token_start = start
+        while token_start < end and text[token_start].isspace():
+            token_start += 1
+        token_end = end
+        while token_end > token_start and text[token_end - 1].isspace():
+            token_end -= 1
+        return token_start, token_end, text[token_start:token_end]
+
+    def refresh_suggestions(self) -> None:
+        self.suggestions.clear()
+        _, _, token = self._current_token_bounds()
+        if not token.strip():
+            return
+
+        for suggestion in suggest_chords(token):
+            item = QListWidgetItem(f"{suggestion.chord}    {suggestion.voicing_name}")
+            item.setData(_user_role(), suggestion.chord)
+            self.suggestions.addItem(item)
+
+    def accept_suggestion(self, item: QListWidgetItem) -> None:
+        chord = item.data(_user_role())
+        if not chord:
+            return
+
+        start, end, _ = self._current_token_bounds()
+        cursor = self.input.textCursor()
+        cursor.setPosition(start)
+        cursor.setPosition(end, _keep_anchor())
+        cursor.insertText(str(chord))
+        self.input.setTextCursor(cursor)
+        self.input.setFocus()
         self.refresh_preview()
 
     def refresh_preview(self) -> None:
@@ -302,6 +363,7 @@ class ChordGeneratorDialog(QDialog):
 
         for line in preview_inputs(text):
             self.preview.addItem(line)
+        self.refresh_suggestions()
         if not chord_inputs:
             self.diagram_preview.set_voicing(None)
             return
@@ -351,23 +413,6 @@ def open_chord_generator(parent: Any = None, initial_text: str = "") -> None:
 
 def _on_tools_action() -> None:
     open_chord_generator(mw)
-
-
-def _on_refresh_action() -> None:
-    def on_success(result: RefreshExistingResult) -> None:
-        message = f"Refreshed {result.refreshed} Guitarist chord note(s)."
-        if result.unsupported:
-            skipped = "\n".join(f"{item.requested}: {item.reason}" for item in result.unsupported)
-            showInfo(f"{message}\n\nSkipped unsupported chords:\n\n{skipped}")
-        else:
-            tooltip(message)
-
-    def on_failure(exc: Exception) -> None:
-        showWarning(f"Could not refresh Guitarist notes:\n\n{exc}")
-
-    CollectionOp(parent=mw, op=lambda col: refresh_existing_notes(col)).success(on_success).failure(
-        on_failure
-    ).run_in_background(initiator=mw)
 
 
 def _on_editor_button(editor: Any) -> None:
@@ -424,10 +469,6 @@ def register_hooks() -> None:
     action = QAction("Guitarist Chord Generator", mw)
     qconnect(action.triggered, _on_tools_action)
     mw.form.menuTools.addAction(action)
-
-    refresh_action = QAction("Refresh Guitarist Cards", mw)
-    qconnect(refresh_action.triggered, _on_refresh_action)
-    mw.form.menuTools.addAction(refresh_action)
 
     gui_hooks.editor_did_init_buttons.append(_add_editor_button)
     profile_hook = getattr(gui_hooks, "profile_did_open", None)

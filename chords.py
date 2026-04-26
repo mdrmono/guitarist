@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -146,6 +147,13 @@ class Voicing:
             else:
                 parts.append(str(finger))
         return " ".join(parts)
+
+
+@dataclass(frozen=True)
+class ChordSuggestion:
+    chord: str
+    voicing_name: str
+    score: float
 
 
 @dataclass(frozen=True)
@@ -328,6 +336,63 @@ def lookup_voicing(symbol: str) -> Voicing:
 
     candidates.sort(key=lambda item: item[0])
     return candidates[0][1]
+
+
+def supported_chord_names() -> Tuple[str, ...]:
+    roots = ("C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B")
+    names: List[str] = []
+    for root in roots:
+        for quality in ("major", "minor", "dominant7", "major7", "minor7", "sus4", "power"):
+            names.append(f"{root}{QUALITY_SUFFIXES[quality]}")
+    return tuple(names)
+
+
+def _compact_chord_name(value: str) -> str:
+    normalized = value.lower()
+    normalized = normalized.replace("sharp", "#")
+    normalized = normalized.replace("flat", "b")
+    normalized = normalized.replace("major", "maj")
+    normalized = normalized.replace("minor", "m")
+    normalized = normalized.replace("dominant", "")
+    normalized = normalized.replace("suspended", "sus")
+    return re.sub(r"[^a-z0-9#b]+", "", normalized)
+
+
+def _fuzzy_score(query: str, candidate: str) -> float:
+    query_key = _compact_chord_name(query)
+    candidate_key = _compact_chord_name(candidate)
+    if not query_key:
+        return 0.0
+    if candidate_key == query_key:
+        return 1.0
+    if candidate_key.startswith(query_key):
+        return 0.96 - (len(candidate_key) - len(query_key)) * 0.01
+    if query_key in candidate_key:
+        return 0.82 - candidate_key.index(query_key) * 0.02
+    return SequenceMatcher(None, query_key, candidate_key).ratio()
+
+
+def suggest_chords(query: str, limit: int = 8) -> Tuple[ChordSuggestion, ...]:
+    query = query.strip()
+    if not query:
+        return ()
+
+    ranked: List[Tuple[float, str, Voicing]] = []
+    for chord_name in supported_chord_names():
+        score = _fuzzy_score(query, chord_name)
+        if score < 0.36:
+            continue
+        try:
+            voicing = lookup_voicing(chord_name)
+        except UnsupportedChord:
+            continue
+        ranked.append((score, chord_name, voicing))
+
+    ranked.sort(key=lambda item: (-item[0], len(item[1]), item[1]))
+    return tuple(
+        ChordSuggestion(chord=chord_name, voicing_name=voicing.name, score=score)
+        for score, chord_name, voicing in ranked[:limit]
+    )
 
 
 def supported_quality_suffixes() -> Iterable[str]:

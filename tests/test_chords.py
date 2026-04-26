@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 
-from guitarist.chords import UnsupportedChord, lookup_voicing, parse_chord, parse_chord_inputs
+from guitarist.chords import UnsupportedChord, lookup_voicing, parse_chord, parse_chord_inputs, suggest_chords
 
 
 class ChordParsingTests(unittest.TestCase):
@@ -39,6 +39,20 @@ class VoicingLookupTests(unittest.TestCase):
         self.assertIn("C", voicing.note_names)
         self.assertIn("E", voicing.note_names)
         self.assertIn("G", voicing.note_names)
+
+
+class ChordSuggestionTests(unittest.TestCase):
+    def test_prefix_suggestions(self) -> None:
+        suggestions = suggest_chords("gma")
+        self.assertGreater(len(suggestions), 0)
+        self.assertEqual(suggestions[0].chord, "Gmaj7")
+
+    def test_fuzzy_suggestions(self) -> None:
+        suggestions = suggest_chords("bflat7")
+        self.assertIn("Bb7", [suggestion.chord for suggestion in suggestions])
+
+    def test_empty_query_has_no_suggestions(self) -> None:
+        self.assertEqual(suggest_chords(" "), ())
 
 
 if __name__ == "__main__":

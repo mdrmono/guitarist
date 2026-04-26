@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, List, Sequence, Tuple
 
 from .chords import UnsupportedChord, lookup_voicing, parse_chord_inputs
-from .generator import ChordAsset, UnsupportedInput, build_chord_asset, prepare_generation
+from .generator import ChordAsset, UnsupportedInput, prepare_generation
 
 
 DECK_NAME = "Guitarist"
@@ -117,13 +117,6 @@ class CreatedChordNote:
 @dataclass
 class AddChordsResult:
     created: List[CreatedChordNote]
-    unsupported: List[UnsupportedInput]
-    changes: Any
-
-
-@dataclass
-class RefreshExistingResult:
-    refreshed: int
     unsupported: List[UnsupportedInput]
     changes: Any
 
@@ -284,36 +277,6 @@ def _apply_asset_to_note(note: Any, asset: ChordAsset, diagram_name: str, audio_
     note["Audio"] = _media_sound_tag(audio_name)
     note["Fingering"] = asset.voicing.fingering_text
     note["Notes"] = ", ".join(asset.voicing.note_names)
-
-
-def refresh_existing_notes(col: Any) -> RefreshExistingResult:
-    notetype = col.models.by_name(NOTE_TYPE_NAME)
-    if notetype is None:
-        return RefreshExistingResult(refreshed=0, unsupported=[], changes=_empty_changes())
-
-    notetype, changes = ensure_notetype(col)
-    note_ids = col.db.list("select id from notes where mid = ?", notetype["id"])
-    unsupported: List[UnsupportedInput] = []
-    refreshed = 0
-
-    for note_id in note_ids:
-        note = col.get_note(note_id)
-        chord = note["Chord"].strip()
-        try:
-            asset = build_chord_asset(chord)
-        except UnsupportedChord as exc:
-            unsupported.append(UnsupportedInput(requested=chord, reason=str(exc)))
-            continue
-        diagram_name, audio_name = _write_asset_media(col, asset)
-        _apply_asset_to_note(note, asset, diagram_name, audio_name)
-        changes = _extract_changes(col.update_note(note))
-        refreshed += 1
-
-    return RefreshExistingResult(
-        refreshed=refreshed,
-        unsupported=unsupported,
-        changes=changes if changes is not None else _empty_changes(),
-    )
 
 
 def preview_inputs(input_text: str) -> Sequence[str]:
