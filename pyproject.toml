@@ -1,0 +1,9 @@
+[project]
+name = "guitarist"
+version = "0.1.0"
+description = "Anki add-on for guitar chord study notes"
+requires-python = ">=3.9"
+readme = "README.md"
+
+[tool.unittest]
+start-directory = "tests"
