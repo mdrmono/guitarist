@@ -39,6 +39,14 @@ class MediaGenerationTests(unittest.TestCase):
         self.assertEqual([asset.voicing.chord for asset in prepared.assets], ["C"])
         self.assertEqual(len(prepared.unsupported), 2)
 
+    def test_prepare_generation_accepts_batch_input(self) -> None:
+        prepared = prepare_generation("C, Am\nG7; Dm7")
+        self.assertEqual(
+            [asset.voicing.chord for asset in prepared.assets],
+            ["C", "Am", "G7", "Dm7"],
+        )
+        self.assertEqual(prepared.unsupported, [])
+
 
 if __name__ == "__main__":
     unittest.main()

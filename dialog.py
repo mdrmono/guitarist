@@ -227,7 +227,7 @@ class ChordGeneratorDialog(QDialog):
 
         title = QLabel("Guitar Chord Anki Generator")
         title.setObjectName("Title")
-        subtitle = QLabel("Create clean chord cards with diagrams and audio.")
+        subtitle = QLabel("Type one chord or paste a comma/newline-separated batch.")
         subtitle.setObjectName("Subtitle")
         layout.addWidget(title)
         layout.addWidget(subtitle)
@@ -248,7 +248,7 @@ class ChordGeneratorDialog(QDialog):
 
         controls_layout.addWidget(QLabel("Chord names"))
         self.input = QPlainTextEdit()
-        self.input.setPlaceholderText("C, Am, G7, Dm7")
+        self.input.setPlaceholderText("C, Am, G7\nDm7")
         self.input.setPlainText(initial_text)
         self.input.setFixedHeight(92)
         controls_layout.addWidget(self.input)
@@ -382,6 +382,7 @@ class ChordGeneratorDialog(QDialog):
         self.create_button.setEnabled(False)
 
         def on_success(result: AddChordsResult) -> None:
+            self.create_button.setEnabled(True)
             created_count = len(result.created)
             skipped_count = len(result.unsupported)
             if created_count:
@@ -391,7 +392,11 @@ class ChordGeneratorDialog(QDialog):
                     f"{item.requested}: {item.reason}" for item in result.unsupported
                 ]
                 showInfo("Skipped unsupported chords:\n\n" + "\n".join(skipped))
-            self.accept()
+                self.input.setPlainText(", ".join(item.requested for item in result.unsupported))
+            elif created_count:
+                self.input.clear()
+            self.input.setFocus()
+            self.refresh_preview()
 
         def on_failure(exc: Exception) -> None:
             self.create_button.setEnabled(True)
