@@ -23,6 +23,7 @@ from aqt.qt import (  # type: ignore
     QPushButton,
     QRectF,
     QScrollArea,
+    QSizePolicy,
     QTabWidget,
     QTextCursor,
     Qt,
@@ -60,12 +61,18 @@ def _user_role() -> Any:
     return getattr(item_role, "UserRole")
 
 
+def _size_policy(name: str) -> Any:
+    policy = getattr(QSizePolicy, "Policy", QSizePolicy)
+    return getattr(policy, name)
+
+
 class ChordPreviewWidget(QWidget):
     def __init__(self, parent: Any = None, empty_text: str = "Type a chord") -> None:
         super().__init__(parent)
         self._voicing: Optional[Voicing] = None
         self._empty_text = empty_text
-        self.setMinimumSize(230, 310)
+        self.setMinimumSize(240, 288)
+        self.setSizePolicy(_size_policy("Expanding"), _size_policy("Expanding"))
 
     def set_voicing(self, voicing: Optional[Voicing]) -> None:
         self._voicing = voicing
@@ -76,10 +83,10 @@ class ChordPreviewWidget(QWidget):
         painter.setRenderHint(_antialiasing())
         painter.fillRect(self.rect(), QColor("#2b2b2b"))
 
-        panel = QRectF(12, 12, self.width() - 24, self.height() - 24)
+        panel = QRectF(1, 1, self.width() - 2, self.height() - 2)
         painter.setPen(QPen(QColor("#3a3d4b"), 1))
         painter.setBrush(QBrush(QColor("#f4f1ec")))
-        painter.drawRoundedRect(panel, 10, 10)
+        painter.drawRoundedRect(panel, 8, 8)
 
         if self._voicing is None:
             painter.setPen(QColor("#6a6f82"))
@@ -99,12 +106,14 @@ class ChordPreviewWidget(QWidget):
             voicing.chord,
         )
 
-        left = panel.left() + 48
-        top = panel.top() + 88
-        string_gap = (panel.width() - 96) / 5
-        fret_gap = 34
+        horizontal_margin = max(28.0, min(42.0, panel.width() * 0.13))
+        left = panel.left() + horizontal_margin
+        right = panel.right() - horizontal_margin
+        top = panel.top() + 72
+        string_gap = (right - left) / 5
+        available_grid_height = max(160.0, panel.bottom() - top - 44)
+        fret_gap = max(32.0, min(50.0, available_grid_height / 5))
         bottom = top + fret_gap * 5
-        right = left + string_gap * 5
         fretted = [fret for fret in voicing.positions if fret is not None and fret > 0]
         base_fret = 1 if not fretted or max(fretted) <= 4 else min(fretted)
 
@@ -171,6 +180,11 @@ QLabel#Title {
 QLabel#Subtitle {
   color: #a7a1ff;
   font-size: 13px;
+}
+QLabel#SectionLabel {
+  color: #f4f4fb;
+  font-size: 13px;
+  font-weight: 600;
 }
 QFrame#Card {
   background: #303030;
@@ -284,11 +298,13 @@ class ChordGeneratorDialog(QDialog):
         preview_card = QFrame()
         preview_card.setObjectName("Card")
         preview_layout = QVBoxLayout()
+        preview_layout.setContentsMargins(6, 6, 6, 6)
+        preview_layout.setSpacing(6)
         preview_card.setLayout(preview_layout)
         generator_layout.addWidget(preview_card, 2)
 
         preview_label = QLabel("Previews")
-        preview_label.setObjectName("Subtitle")
+        preview_label.setObjectName("SectionLabel")
         preview_layout.addWidget(preview_label)
         self.diagram_preview_area = QScrollArea()
         self.diagram_preview_area.setWidgetResizable(True)
@@ -422,7 +438,6 @@ class ChordGeneratorDialog(QDialog):
             self.diagram_preview_layout.addWidget(
                 ChordPreviewWidget(empty_text="No supported chords")
             )
-        self.diagram_preview_layout.addStretch(1)
 
     def create_notes(self) -> None:
         text = self.input.toPlainText().strip()
