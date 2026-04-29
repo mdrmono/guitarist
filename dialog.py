@@ -22,6 +22,7 @@ from aqt.qt import (  # type: ignore
     QPlainTextEdit,
     QPushButton,
     QRectF,
+    QScrollArea,
     QTabWidget,
     QTextCursor,
     Qt,
@@ -60,9 +61,10 @@ def _user_role() -> Any:
 
 
 class ChordPreviewWidget(QWidget):
-    def __init__(self, parent: Any = None) -> None:
+    def __init__(self, parent: Any = None, empty_text: str = "Type a chord") -> None:
         super().__init__(parent)
         self._voicing: Optional[Voicing] = None
+        self._empty_text = empty_text
         self.setMinimumSize(230, 310)
 
     def set_voicing(self, voicing: Optional[Voicing]) -> None:
@@ -82,7 +84,7 @@ class ChordPreviewWidget(QWidget):
         if self._voicing is None:
             painter.setPen(QColor("#6a6f82"))
             painter.setFont(QFont("Arial", 13))
-            painter.drawText(panel, _align_center(), "Type a chord")
+            painter.drawText(panel, _align_center(), self._empty_text)
             painter.end()
             return
 
@@ -91,7 +93,11 @@ class ChordPreviewWidget(QWidget):
         title_font = QFont("Arial", 22)
         title_font.setBold(True)
         painter.setFont(title_font)
-        painter.drawText(QRectF(panel.left(), panel.top() + 12, panel.width(), 36), _align_center(), voicing.chord)
+        painter.drawText(
+            QRectF(panel.left(), panel.top() + 12, panel.width(), 36),
+            _align_center(),
+            voicing.chord,
+        )
 
         left = panel.left() + 48
         top = panel.top() + 88
@@ -172,13 +178,22 @@ QFrame#Card {
   border-radius: 8px;
 }
 QPlainTextEdit,
-QListWidget {
+QListWidget,
+QScrollArea {
   background: #353535;
   border: 1px solid #474747;
   border-radius: 6px;
   color: #f4f4fb;
   selection-background-color: #544cc8;
   padding: 6px;
+}
+QScrollArea {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+QScrollArea QWidget {
+  background: transparent;
 }
 QTabWidget::pane {
   border: 1px solid #404040;
@@ -272,17 +287,29 @@ class ChordGeneratorDialog(QDialog):
         preview_card.setLayout(preview_layout)
         generator_layout.addWidget(preview_card, 2)
 
-        preview_label = QLabel("Preview")
+        preview_label = QLabel("Previews")
         preview_label.setObjectName("Subtitle")
         preview_layout.addWidget(preview_label)
-        self.diagram_preview = ChordPreviewWidget()
-        preview_layout.addWidget(self.diagram_preview)
+        self.diagram_preview_area = QScrollArea()
+        self.diagram_preview_area.setWidgetResizable(True)
+        self.diagram_preview_container = QWidget()
+        self.diagram_preview_layout = QVBoxLayout()
+        self.diagram_preview_layout.setContentsMargins(0, 0, 0, 0)
+        self.diagram_preview_layout.setSpacing(10)
+        self.diagram_preview_container.setLayout(self.diagram_preview_layout)
+        self.diagram_preview_area.setWidget(self.diagram_preview_container)
+        preview_layout.addWidget(self.diagram_preview_area)
 
         options_tab = QWidget()
         options_layout = QVBoxLayout()
         options_tab.setLayout(options_layout)
         tabs.addTab(options_tab, "Options")
-        options_layout.addWidget(QLabel("Version 1 uses standard tuning, curated common voicings, finger numbers, and generated WAV audio."))
+        options_layout.addWidget(
+            QLabel(
+                "Version 1 uses standard tuning, curated common voicings, "
+                "finger numbers, and generated WAV audio."
+            )
+        )
         options_layout.addStretch(1)
 
         about_tab = QWidget()
@@ -357,21 +384,45 @@ class ChordGeneratorDialog(QDialog):
         self.preview.clear()
         text = self.input.toPlainText()
         chord_inputs = parse_chord_inputs(text)
-        self.summary.setText(f"{len(chord_inputs)} chord(s) queued" if chord_inputs else "No chords queued")
+        self.summary.setText(
+            f"{len(chord_inputs)} chord(s) queued" if chord_inputs else "No chords queued"
+        )
         self.create_button.setText("Add Card" if len(chord_inputs) <= 1 else "Add Cards")
         self.create_button.setEnabled(bool(chord_inputs))
 
         for line in preview_inputs(text):
             self.preview.addItem(line)
         self.refresh_suggestions()
+        self.refresh_diagram_previews(chord_inputs)
+
+    def refresh_diagram_previews(self, chord_inputs: List[str]) -> None:
+        while self.diagram_preview_layout.count():
+            item = self.diagram_preview_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
         if not chord_inputs:
-            self.diagram_preview.set_voicing(None)
+            self.diagram_preview_layout.addWidget(ChordPreviewWidget())
             return
 
-        try:
-            self.diagram_preview.set_voicing(lookup_voicing(chord_inputs[0]))
-        except Exception:
-            self.diagram_preview.set_voicing(None)
+        preview_count = 0
+        for requested in chord_inputs:
+            try:
+                voicing = lookup_voicing(requested)
+            except Exception:
+                continue
+
+            preview = ChordPreviewWidget()
+            preview.set_voicing(voicing)
+            self.diagram_preview_layout.addWidget(preview)
+            preview_count += 1
+
+        if preview_count == 0:
+            self.diagram_preview_layout.addWidget(
+                ChordPreviewWidget(empty_text="No supported chords")
+            )
+        self.diagram_preview_layout.addStretch(1)
 
     def create_notes(self) -> None:
         text = self.input.toPlainText().strip()
