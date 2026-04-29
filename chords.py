@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
-from difflib import SequenceMatcher
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 
@@ -70,6 +70,18 @@ QUALITY_SUFFIXES = {
     "power": "5",
 }
 
+Fret = Optional[int]
+StringFrets = Tuple[Fret, Fret, Fret, Fret, Fret, Fret]
+StringNotes = Tuple[
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+    Optional[str],
+]
+VoicingDefinition = Tuple[Sequence[Fret], Sequence[Fret], str]
+
 
 class UnsupportedChord(ValueError):
     """Raised when a chord symbol can not be mapped to a v1 voicing."""
@@ -97,8 +109,8 @@ class Voicing:
     chord: str
     root: str
     quality: str
-    positions: Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]
-    fingers: Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]
+    positions: StringFrets
+    fingers: StringFrets
     name: str
 
     @property
@@ -121,7 +133,7 @@ class Voicing:
         return tuple(names)
 
     @property
-    def string_note_names(self) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+    def string_note_names(self) -> StringNotes:
         names: List[Optional[str]] = []
         for open_midi, fret in zip(OPEN_STRING_MIDI, self.positions):
             names.append(None if fret is None else VALUE_TO_SHARP[(open_midi + fret) % 12])
@@ -161,8 +173,8 @@ class _Template:
     quality: str
     name: str
     root_string_value: int
-    offsets: Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]
-    fingers: Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]
+    offsets: StringFrets
+    fingers: StringFrets
     priority: int
 
 
@@ -222,13 +234,13 @@ def parse_chord_inputs(text: str) -> List[str]:
     return [part.strip() for part in parts if part.strip()]
 
 
-def _positions(values: Sequence[Optional[int]]) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]:
+def _positions(values: Sequence[Fret]) -> StringFrets:
     if len(values) != 6:
         raise ValueError("Voicings must define exactly 6 strings")
     return tuple(values)  # type: ignore[return-value]
 
 
-OPEN_VOICINGS: Dict[Tuple[int, str], Tuple[Sequence[Optional[int]], Sequence[Optional[int]], str]] = {
+OPEN_VOICINGS: Dict[Tuple[int, str], VoicingDefinition] = {
     (0, "major"): ([None, 3, 2, 0, 1, 0], [None, 3, 2, None, 1, None], "open C major"),
     (2, "major"): ([None, None, 0, 2, 3, 2], [None, None, None, 1, 3, 2], "open D major"),
     (4, "major"): ([0, 2, 2, 1, 0, 0], [None, 2, 3, 1, None, None], "open E major"),
@@ -260,20 +272,118 @@ OPEN_VOICINGS: Dict[Tuple[int, str], Tuple[Sequence[Optional[int]], Sequence[Opt
 }
 
 MOVABLE_TEMPLATES: Tuple[_Template, ...] = (
-    _Template("major", "E-shape barre major", NOTE_VALUES["E"], _positions([0, 2, 2, 1, 0, 0]), _positions([1, 3, 4, 2, 1, 1]), 2),
-    _Template("major", "A-shape barre major", NOTE_VALUES["A"], _positions([None, 0, 2, 2, 2, 0]), _positions([None, 1, 3, 3, 3, 1]), 1),
-    _Template("minor", "E-shape barre minor", NOTE_VALUES["E"], _positions([0, 2, 2, 0, 0, 0]), _positions([1, 3, 4, 1, 1, 1]), 2),
-    _Template("minor", "A-shape barre minor", NOTE_VALUES["A"], _positions([None, 0, 2, 2, 1, 0]), _positions([None, 1, 3, 4, 2, 1]), 1),
-    _Template("dominant7", "E-shape dominant seventh", NOTE_VALUES["E"], _positions([0, 2, 0, 1, 0, 0]), _positions([1, 3, 1, 2, 1, 1]), 2),
-    _Template("dominant7", "A-shape dominant seventh", NOTE_VALUES["A"], _positions([None, 0, 2, 0, 2, 0]), _positions([None, 1, 3, 1, 4, 1]), 1),
-    _Template("major7", "E-shape major seventh", NOTE_VALUES["E"], _positions([0, 2, 1, 1, 0, 0]), _positions([1, 4, 2, 3, 1, 1]), 2),
-    _Template("major7", "A-shape major seventh", NOTE_VALUES["A"], _positions([None, 0, 2, 1, 2, 0]), _positions([None, 1, 3, 2, 4, 1]), 1),
-    _Template("minor7", "E-shape minor seventh", NOTE_VALUES["E"], _positions([0, 2, 0, 0, 0, 0]), _positions([1, 3, 1, 1, 1, 1]), 2),
-    _Template("minor7", "A-shape minor seventh", NOTE_VALUES["A"], _positions([None, 0, 2, 0, 1, 0]), _positions([None, 1, 3, 1, 2, 1]), 1),
-    _Template("sus4", "E-shape suspended fourth", NOTE_VALUES["E"], _positions([0, 2, 2, 2, 0, 0]), _positions([1, 2, 3, 4, 1, 1]), 2),
-    _Template("sus4", "A-shape suspended fourth", NOTE_VALUES["A"], _positions([None, 0, 2, 2, 3, 0]), _positions([None, 1, 2, 3, 4, 1]), 1),
-    _Template("power", "E-string power chord", NOTE_VALUES["E"], _positions([0, 2, 2, None, None, None]), _positions([1, 3, 4, None, None, None]), 2),
-    _Template("power", "A-string power chord", NOTE_VALUES["A"], _positions([None, 0, 2, 2, None, None]), _positions([None, 1, 3, 4, None, None]), 1),
+    _Template(
+        "major",
+        "E-shape barre major",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 2, 1, 0, 0]),
+        _positions([1, 3, 4, 2, 1, 1]),
+        2,
+    ),
+    _Template(
+        "major",
+        "A-shape barre major",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 2, 2, 0]),
+        _positions([None, 1, 3, 3, 3, 1]),
+        1,
+    ),
+    _Template(
+        "minor",
+        "E-shape barre minor",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 2, 0, 0, 0]),
+        _positions([1, 3, 4, 1, 1, 1]),
+        2,
+    ),
+    _Template(
+        "minor",
+        "A-shape barre minor",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 2, 1, 0]),
+        _positions([None, 1, 3, 4, 2, 1]),
+        1,
+    ),
+    _Template(
+        "dominant7",
+        "E-shape dominant seventh",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 0, 1, 0, 0]),
+        _positions([1, 3, 1, 2, 1, 1]),
+        2,
+    ),
+    _Template(
+        "dominant7",
+        "A-shape dominant seventh",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 0, 2, 0]),
+        _positions([None, 1, 3, 1, 4, 1]),
+        1,
+    ),
+    _Template(
+        "major7",
+        "E-shape major seventh",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 1, 1, 0, 0]),
+        _positions([1, 4, 2, 3, 1, 1]),
+        2,
+    ),
+    _Template(
+        "major7",
+        "A-shape major seventh",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 1, 2, 0]),
+        _positions([None, 1, 3, 2, 4, 1]),
+        1,
+    ),
+    _Template(
+        "minor7",
+        "E-shape minor seventh",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 0, 0, 0, 0]),
+        _positions([1, 3, 1, 1, 1, 1]),
+        2,
+    ),
+    _Template(
+        "minor7",
+        "A-shape minor seventh",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 0, 1, 0]),
+        _positions([None, 1, 3, 1, 2, 1]),
+        1,
+    ),
+    _Template(
+        "sus4",
+        "E-shape suspended fourth",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 2, 2, 0, 0]),
+        _positions([1, 2, 3, 4, 1, 1]),
+        2,
+    ),
+    _Template(
+        "sus4",
+        "A-shape suspended fourth",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 2, 3, 0]),
+        _positions([None, 1, 2, 3, 4, 1]),
+        1,
+    ),
+    _Template(
+        "power",
+        "E-string power chord",
+        NOTE_VALUES["E"],
+        _positions([0, 2, 2, None, None, None]),
+        _positions([1, 3, 4, None, None, None]),
+        2,
+    ),
+    _Template(
+        "power",
+        "A-string power chord",
+        NOTE_VALUES["A"],
+        _positions([None, 0, 2, 2, None, None]),
+        _positions([None, 1, 3, 4, None, None]),
+        1,
+    ),
 )
 
 
@@ -339,7 +449,25 @@ def lookup_voicing(symbol: str) -> Voicing:
 
 
 def supported_chord_names() -> Tuple[str, ...]:
-    roots = ("C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G", "G#", "Ab", "A", "A#", "Bb", "B")
+    roots = (
+        "C",
+        "C#",
+        "Db",
+        "D",
+        "D#",
+        "Eb",
+        "E",
+        "F",
+        "F#",
+        "Gb",
+        "G",
+        "G#",
+        "Ab",
+        "A",
+        "A#",
+        "Bb",
+        "B",
+    )
     names: List[str] = []
     for root in roots:
         for quality in ("major", "minor", "dominant7", "major7", "minor7", "sus4", "power"):

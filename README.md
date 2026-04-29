@@ -1,6 +1,8 @@
 # Guitarist
 
-Guitarist is an Anki add-on for generating guitar chord study notes. Version 1 lets a user type chord names, then creates Anki notes with a fretboard diagram, synthesized chord audio, and two review cards.
+Guitarist is an Anki add-on for generating guitar chord study notes. Version 1
+lets a user type chord names, then creates Anki notes with a fretboard diagram,
+synthesized chord audio, and two review cards.
 
 ## Features
 
@@ -13,7 +15,9 @@ Guitarist is an Anki add-on for generating guitar chord study notes. Version 1 l
 
 ## Supported v1 chord types
 
-Major, minor, dominant seventh, major seventh, minor seventh, suspended fourth, and power chords are supported with common open voicings and movable E/A-shape voicings.
+Major, minor, dominant seventh, major seventh, minor seventh, suspended fourth,
+and power chords are supported with common open voicings and movable E/A-shape
+voicings.
 
 Examples:
 
@@ -29,4 +33,14 @@ Run the core tests:
 python3 -m unittest
 ```
 
-To test in Anki, symlink this folder into Anki's `addons21` directory as `guitarist`, then restart Anki.
+To test in Anki, copy a development build into Anki's `addons21` directory:
+
+```bash
+rsync -a --delete \
+  --exclude .git \
+  --exclude __pycache__ \
+  --exclude tests \
+  ./ ~/.local/share/Anki2/addons21/guitarist/
+```
+
+Restart Anki after copying the files.

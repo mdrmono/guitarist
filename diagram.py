@@ -57,7 +57,8 @@ def render_chord_svg(voicing: Voicing) -> str:
         stroke_width = 2.7 - min(string_idx, 4) * 0.18
         parts.append(
             f'<line x1="{x:.1f}" y1="{top:.1f}" x2="{x:.1f}" y2="{bottom:.1f}" '
-            f'stroke="#f4f4fb" stroke-width="{stroke_width:.2f}" stroke-linecap="round" opacity="0.96"/>'
+            f'stroke="#f4f4fb" stroke-width="{stroke_width:.2f}" '
+            'stroke-linecap="round" opacity="0.96"/>'
         )
 
     for fret_idx in range(fret_count + 1):
@@ -65,7 +66,8 @@ def render_chord_svg(voicing: Voicing) -> str:
         stroke_width = 5.5 if fret_idx == 0 and base_fret == 1 else 2.0
         parts.append(
             f'<line x1="{left:.1f}" y1="{y:.1f}" x2="{right:.1f}" y2="{y:.1f}" '
-            f'stroke="#f4f4fb" stroke-width="{stroke_width:.1f}" stroke-linecap="round" opacity="0.92"/>'
+            f'stroke="#f4f4fb" stroke-width="{stroke_width:.1f}" '
+            'stroke-linecap="round" opacity="0.92"/>'
         )
 
     if base_fret > 1:
@@ -90,7 +92,10 @@ def render_chord_svg(voicing: Voicing) -> str:
         x = left + string_gap * string_idx
         y = top + fret_gap * (relative_fret - 0.5)
         parts.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="17" fill="#6457d7"/>')
-        parts.append(f'<circle cx="{x - 5:.1f}" cy="{y - 6:.1f}" r="5" fill="#958cff" opacity="0.75"/>')
+        parts.append(
+            f'<circle cx="{x - 5:.1f}" cy="{y - 6:.1f}" r="5" '
+            'fill="#958cff" opacity="0.75"/>'
+        )
         finger: Optional[int] = voicing.fingers[string_idx]
         if finger is not None:
             parts.append(

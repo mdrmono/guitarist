@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import io
-import pathlib
-import sys
 import unittest
 import wave
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+from tests.context import setup_import_path
+
+setup_import_path()
 
 from guitarist.audio import generate_chord_wav
 from guitarist.diagram import render_chord_svg

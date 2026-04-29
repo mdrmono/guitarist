@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-import pathlib
-import sys
 import unittest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+from tests.context import setup_import_path
 
-from guitarist.chords import UnsupportedChord, lookup_voicing, parse_chord, parse_chord_inputs, suggest_chords
+setup_import_path()
+
+from guitarist.chords import (
+    UnsupportedChord,
+    lookup_voicing,
+    parse_chord,
+    parse_chord_inputs,
+    suggest_chords,
+)
 
 
 class ChordParsingTests(unittest.TestCase):

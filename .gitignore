@@ -1,10 +1,27 @@
+# Python cache and tooling output
 __pycache__/
 *.py[cod]
-.pytest_cache/
+*$py.class
+.coverage
+.coverage.*
 .mypy_cache/
+.pytest_cache/
 .ruff_cache/
-.codex
+htmlcov/
+
+# Local environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Build and packaged add-on artifacts
 *.ankiaddon
-dist/
 build/
+dist/
+
+# Local editor/OS state
+.codex
+.codex/
 .DS_Store
