@@ -8,10 +8,11 @@ from typing import Any, List, Sequence, Tuple
 
 from .chords import UnsupportedChord, lookup_voicing, parse_chord_inputs
 from .generator import ChordAsset, UnsupportedInput, prepare_generation
+from .settings import DEFAULT_DECK_NAME, DEFAULT_NOTE_TYPE_NAME
 
 
-DECK_NAME = "Guitarist"
-NOTE_TYPE_NAME = "Guitarist Chord"
+DECK_NAME = DEFAULT_DECK_NAME
+NOTE_TYPE_NAME = DEFAULT_NOTE_TYPE_NAME
 FIELDS = ("Chord", "Voicing", "Diagram", "Audio", "Fingering", "Notes")
 
 CARD_TEMPLATES = (
@@ -131,8 +132,8 @@ def _extract_changes(result: Any) -> Any:
     return getattr(result, "changes", result)
 
 
-def ensure_deck(col: Any) -> Any:
-    return col.decks.id(DECK_NAME)
+def ensure_deck(col: Any, deck_name: str = DECK_NAME) -> Any:
+    return col.decks.id(deck_name.strip() or DECK_NAME)
 
 
 def ensure_notetype(col: Any) -> Tuple[Any, Any]:
@@ -237,12 +238,16 @@ def _write_asset_media(col: Any, asset: ChordAsset) -> Tuple[str, str]:
     return diagram_name, audio_name
 
 
-def add_chord_notes(col: Any, input_text: str) -> AddChordsResult:
+def add_chord_notes(
+    col: Any,
+    input_text: str,
+    deck_name: str = DECK_NAME,
+) -> AddChordsResult:
     prepared = prepare_generation(input_text)
     changes = None
 
     if prepared.assets:
-        deck_id = ensure_deck(col)
+        deck_id = ensure_deck(col, deck_name)
         notetype, model_changes = ensure_notetype(col)
         changes = model_changes
     else:

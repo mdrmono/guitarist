@@ -9,7 +9,9 @@ from aqt.operations import CollectionOp  # type: ignore
 from aqt.qt import (  # type: ignore
     QAction,
     QBrush,
+    QCheckBox,
     QColor,
+    QComboBox,
     QDialog,
     QFont,
     QFrame,
@@ -22,7 +24,6 @@ from aqt.qt import (  # type: ignore
     QPlainTextEdit,
     QPushButton,
     QRectF,
-    QScrollArea,
     QSizePolicy,
     QTabWidget,
     QTextCursor,
@@ -39,6 +40,11 @@ from .anki_integration import (
     refresh_existing_notetype,
 )
 from .chords import Voicing, lookup_voicing, parse_chord_inputs, suggest_chords
+from .dev_reload import dev_reload_enabled, reload_addon_modules
+from .settings import GuitaristSettings, apply_settings_to_config, settings_from_config
+
+
+ADDON_REPO_URL = "https://github.com/mdrmono/guitarist"
 
 
 def _align_center() -> Any:
@@ -77,6 +83,11 @@ class ChordPreviewWidget(QWidget):
     def set_voicing(self, voicing: Optional[Voicing]) -> None:
         self._voicing = voicing
         self.update()
+
+    def set_empty_text(self, text: str) -> None:
+        self._empty_text = text
+        if self._voicing is None:
+            self.update()
 
     def paintEvent(self, event: Any) -> None:
         painter = QPainter(self)
@@ -181,10 +192,11 @@ QLabel#Subtitle {
   color: #a7a1ff;
   font-size: 13px;
 }
-QLabel#SectionLabel {
-  color: #f4f4fb;
-  font-size: 13px;
-  font-weight: 600;
+QLabel#OptionHelp,
+QLabel#AboutText,
+QLabel#OptionsStatus {
+  color: #a9abba;
+  font-size: 12px;
 }
 QFrame#Card {
   background: #303030;
@@ -193,7 +205,7 @@ QFrame#Card {
 }
 QPlainTextEdit,
 QListWidget,
-QScrollArea {
+QComboBox {
   background: #353535;
   border: 1px solid #474747;
   border-radius: 6px;
@@ -201,13 +213,9 @@ QScrollArea {
   selection-background-color: #544cc8;
   padding: 6px;
 }
-QScrollArea {
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-QScrollArea QWidget {
-  background: transparent;
+QCheckBox {
+  color: #f4f4fb;
+  spacing: 8px;
 }
 QTabWidget::pane {
   border: 1px solid #404040;
@@ -237,11 +245,53 @@ QPushButton#Primary {
   border-color: #8d83ff;
   font-weight: 700;
 }
+QPushButton#PreviewNav {
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 34px;
+  padding: 4px 8px;
+}
 QPushButton:disabled {
   color: #777b8c;
   background: #353535;
 }
+QLabel#PreviewCounter {
+  color: #d9d8e8;
+  font-size: 12px;
+}
 """
+
+
+def _load_addon_settings() -> GuitaristSettings:
+    try:
+        config = mw.addonManager.getConfig(__name__)
+    except Exception:
+        config = None
+    return settings_from_config(config)
+
+
+def _write_addon_settings(settings: GuitaristSettings) -> None:
+    config = mw.addonManager.getConfig(__name__)
+    updated = apply_settings_to_config(config, settings)
+    mw.addonManager.writeConfig(__name__, updated)
+
+
+def _deck_names() -> List[str]:
+    col = getattr(mw, "col", None)
+    if col is None:
+        return []
+
+    decks = col.decks
+    try:
+        if hasattr(decks, "all_names_and_ids"):
+            return sorted(deck.name for deck in decks.all_names_and_ids())
+        if hasattr(decks, "all_names"):
+            return sorted(decks.all_names())
+        if hasattr(decks, "allNames"):
+            return sorted(decks.allNames())
+    except Exception:
+        return []
+    return []
 
 
 class ChordGeneratorDialog(QDialog):
@@ -250,6 +300,9 @@ class ChordGeneratorDialog(QDialog):
         self.setWindowTitle("Guitarist Chord Generator")
         self.resize(760, 520)
         self.setStyleSheet(STYLE_SHEET)
+        self.settings = _load_addon_settings()
+        self.preview_voicings: List[Voicing] = []
+        self.preview_index = 0
 
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -298,41 +351,88 @@ class ChordGeneratorDialog(QDialog):
         preview_card = QFrame()
         preview_card.setObjectName("Card")
         preview_layout = QVBoxLayout()
-        preview_layout.setContentsMargins(6, 6, 6, 6)
-        preview_layout.setSpacing(6)
+        preview_layout.setContentsMargins(4, 4, 4, 4)
+        preview_layout.setSpacing(0)
         preview_card.setLayout(preview_layout)
         generator_layout.addWidget(preview_card, 2)
 
-        preview_label = QLabel("Previews")
-        preview_label.setObjectName("SectionLabel")
-        preview_layout.addWidget(preview_label)
-        self.diagram_preview_area = QScrollArea()
-        self.diagram_preview_area.setWidgetResizable(True)
-        self.diagram_preview_container = QWidget()
-        self.diagram_preview_layout = QVBoxLayout()
-        self.diagram_preview_layout.setContentsMargins(0, 0, 0, 0)
-        self.diagram_preview_layout.setSpacing(10)
-        self.diagram_preview_container.setLayout(self.diagram_preview_layout)
-        self.diagram_preview_area.setWidget(self.diagram_preview_container)
-        preview_layout.addWidget(self.diagram_preview_area)
+        self.diagram_preview = ChordPreviewWidget()
+        preview_layout.addWidget(self.diagram_preview, 1)
+
+        self.preview_nav = QWidget()
+        preview_nav_layout = QHBoxLayout()
+        preview_nav_layout.setContentsMargins(0, 4, 0, 0)
+        preview_nav_layout.setSpacing(8)
+        self.preview_nav.setLayout(preview_nav_layout)
+        self.previous_preview_button = QPushButton("<")
+        self.previous_preview_button.setObjectName("PreviewNav")
+        self.next_preview_button = QPushButton(">")
+        self.next_preview_button.setObjectName("PreviewNav")
+        self.preview_counter = QLabel("")
+        self.preview_counter.setObjectName("PreviewCounter")
+        preview_nav_layout.addWidget(self.previous_preview_button)
+        preview_nav_layout.addStretch(1)
+        preview_nav_layout.addWidget(self.preview_counter)
+        preview_nav_layout.addStretch(1)
+        preview_nav_layout.addWidget(self.next_preview_button)
+        preview_layout.addWidget(self.preview_nav)
 
         options_tab = QWidget()
         options_layout = QVBoxLayout()
+        options_layout.setContentsMargins(16, 14, 16, 14)
+        options_layout.setSpacing(12)
         options_tab.setLayout(options_layout)
         tabs.addTab(options_tab, "Options")
-        options_layout.addWidget(
-            QLabel(
-                "Version 1 uses standard tuning, curated common voicings, "
-                "finger numbers, and generated WAV audio."
-            )
-        )
+
+        options_layout.addWidget(QLabel("Destination deck"))
+        self.deck_selector = QComboBox()
+        self.deck_selector.setEditable(True)
+        self._populate_deck_selector()
+        options_layout.addWidget(self.deck_selector)
+
+        deck_help = QLabel("Type a new deck name to create it when cards are added.")
+        deck_help.setObjectName("OptionHelp")
+        deck_help.setWordWrap(True)
+        options_layout.addWidget(deck_help)
+
+        self.clear_input_checkbox = QCheckBox("Clear chord input after adding cards")
+        self.clear_input_checkbox.setChecked(self.settings.clear_input_after_add)
+        options_layout.addWidget(self.clear_input_checkbox)
+
+        self.keep_unsupported_checkbox = QCheckBox("Keep unsupported chords in input")
+        self.keep_unsupported_checkbox.setChecked(self.settings.keep_unsupported_after_add)
+        options_layout.addWidget(self.keep_unsupported_checkbox)
+
+        save_options_button = QPushButton("Save Options")
+        save_options_button.setObjectName("Primary")
+        options_layout.addWidget(save_options_button)
+
+        self.options_status = QLabel("")
+        self.options_status.setObjectName("OptionsStatus")
+        options_layout.addWidget(self.options_status)
         options_layout.addStretch(1)
 
         about_tab = QWidget()
         about_layout = QVBoxLayout()
+        about_layout.setContentsMargins(16, 14, 16, 14)
+        about_layout.setSpacing(10)
         about_tab.setLayout(about_layout)
         tabs.addTab(about_tab, "About")
-        about_layout.addWidget(QLabel("Guitarist creates Anki chord notes in the Guitarist deck."))
+        about_text = QLabel(
+            "Guitarist is an Anki add-on for creating guitar chord study cards "
+            "with fretboard diagrams, fingerings, and generated strum audio."
+        )
+        about_text.setObjectName("AboutText")
+        about_text.setWordWrap(True)
+        about_layout.addWidget(about_text)
+
+        repo_label = QLabel(
+            f'Repository: <a href="{ADDON_REPO_URL}">{ADDON_REPO_URL}</a>'
+        )
+        repo_label.setObjectName("AboutText")
+        repo_label.setOpenExternalLinks(True)
+        repo_label.setWordWrap(True)
+        about_layout.addWidget(repo_label)
         about_layout.addStretch(1)
 
         button_row = QHBoxLayout()
@@ -350,8 +450,42 @@ class ChordGeneratorDialog(QDialog):
         qconnect(self.suggestions.itemActivated, self.accept_suggestion)
         qconnect(self.create_button.clicked, self.create_notes)
         qconnect(cancel_button.clicked, self.reject)
+        qconnect(self.previous_preview_button.clicked, self.show_previous_preview)
+        qconnect(self.next_preview_button.clicked, self.show_next_preview)
+        qconnect(save_options_button.clicked, self.save_options)
 
         self.refresh_preview()
+
+    def _populate_deck_selector(self) -> None:
+        seen = set()
+        for deck_name in [self.settings.deck_name] + _deck_names():
+            if deck_name in seen:
+                continue
+            self.deck_selector.addItem(deck_name)
+            seen.add(deck_name)
+
+    def current_options_settings(self) -> GuitaristSettings:
+        return GuitaristSettings(
+            deck_name=self.deck_selector.currentText().strip(),
+            clear_input_after_add=self.clear_input_checkbox.isChecked(),
+            keep_unsupported_after_add=self.keep_unsupported_checkbox.isChecked(),
+        )
+
+    def save_options(self) -> bool:
+        settings = self.current_options_settings()
+        if not settings.deck_name:
+            showWarning("Choose a destination deck.")
+            return False
+        try:
+            _write_addon_settings(settings)
+        except Exception as exc:
+            showWarning(f"Could not save Guitarist options:\n\n{exc}")
+            return False
+
+        self.settings = settings
+        self.options_status.setText(f"Saved. New cards will go to {settings.deck_name}.")
+        tooltip("Saved Guitarist options.")
+        return True
 
     def _current_token_bounds(self) -> tuple[int, int, str]:
         text = self.input.toPlainText()
@@ -412,38 +546,87 @@ class ChordGeneratorDialog(QDialog):
         self.refresh_diagram_previews(chord_inputs)
 
     def refresh_diagram_previews(self, chord_inputs: List[str]) -> None:
-        while self.diagram_preview_layout.count():
-            item = self.diagram_preview_layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+        current_chord = None
+        if self.preview_voicings:
+            current_chord = self.preview_voicings[self.preview_index].chord
 
         if not chord_inputs:
-            self.diagram_preview_layout.addWidget(ChordPreviewWidget())
+            self.preview_voicings = []
+            self.preview_index = 0
+            self.diagram_preview.set_empty_text("Type a chord")
+            self.diagram_preview.set_voicing(None)
+            self.refresh_preview_navigation()
             return
 
-        preview_count = 0
+        self.preview_voicings = []
         for requested in chord_inputs:
             try:
                 voicing = lookup_voicing(requested)
             except Exception:
                 continue
+            self.preview_voicings.append(voicing)
 
-            preview = ChordPreviewWidget()
-            preview.set_voicing(voicing)
-            self.diagram_preview_layout.addWidget(preview)
-            preview_count += 1
+        if not self.preview_voicings:
+            self.preview_index = 0
+            self.diagram_preview.set_empty_text("No supported chords")
+            self.diagram_preview.set_voicing(None)
+            self.refresh_preview_navigation()
+            return
 
-        if preview_count == 0:
-            self.diagram_preview_layout.addWidget(
-                ChordPreviewWidget(empty_text="No supported chords")
-            )
+        if current_chord:
+            chords = [voicing.chord for voicing in self.preview_voicings]
+            if current_chord in chords:
+                self.preview_index = chords.index(current_chord)
+            else:
+                self.preview_index = min(self.preview_index, len(self.preview_voicings) - 1)
+        else:
+            self.preview_index = 0
+        self.show_current_preview()
+
+    def show_current_preview(self) -> None:
+        if not self.preview_voicings:
+            self.refresh_preview_navigation()
+            return
+        self.diagram_preview.set_voicing(self.preview_voicings[self.preview_index])
+        self.refresh_preview_navigation()
+
+    def refresh_preview_navigation(self) -> None:
+        preview_count = len(self.preview_voicings)
+        show_navigation = preview_count > 1
+        self.preview_nav.setVisible(show_navigation)
+        self.previous_preview_button.setEnabled(self.preview_index > 0)
+        self.next_preview_button.setEnabled(self.preview_index < preview_count - 1)
+        if show_navigation:
+            self.preview_counter.setText(f"{self.preview_index + 1} / {preview_count}")
+        else:
+            self.preview_counter.setText("")
+
+    def show_previous_preview(self) -> None:
+        if self.preview_index <= 0:
+            return
+        self.preview_index -= 1
+        self.show_current_preview()
+
+    def show_next_preview(self) -> None:
+        if self.preview_index >= len(self.preview_voicings) - 1:
+            return
+        self.preview_index += 1
+        self.show_current_preview()
 
     def create_notes(self) -> None:
         text = self.input.toPlainText().strip()
         if not parse_chord_inputs(text):
             showWarning("Enter at least one chord name.")
             return
+        settings = self.current_options_settings()
+        if not settings.deck_name:
+            showWarning("Choose a destination deck.")
+            return
+        try:
+            _write_addon_settings(settings)
+            self.settings = settings
+        except Exception:
+            pass
 
         self.create_button.setEnabled(False)
 
@@ -458,8 +641,13 @@ class ChordGeneratorDialog(QDialog):
                     f"{item.requested}: {item.reason}" for item in result.unsupported
                 ]
                 showInfo("Skipped unsupported chords:\n\n" + "\n".join(skipped))
-                self.input.setPlainText(", ".join(item.requested for item in result.unsupported))
-            elif created_count:
+                if settings.keep_unsupported_after_add:
+                    self.input.setPlainText(
+                        ", ".join(item.requested for item in result.unsupported)
+                    )
+                elif settings.clear_input_after_add:
+                    self.input.clear()
+            elif created_count and settings.clear_input_after_add:
                 self.input.clear()
             self.input.setFocus()
             self.refresh_preview()
@@ -470,7 +658,7 @@ class ChordGeneratorDialog(QDialog):
 
         CollectionOp(
             parent=self,
-            op=lambda col: add_chord_notes(col, text),
+            op=lambda col: add_chord_notes(col, text, deck_name=settings.deck_name),
         ).success(on_success).failure(on_failure).run_in_background(initiator=self)
 
 
@@ -488,6 +676,17 @@ def _on_tools_action() -> None:
 
 def _on_editor_button(editor: Any) -> None:
     open_chord_generator(getattr(editor, "parentWindow", mw))
+
+
+def _on_dev_reload_action() -> None:
+    try:
+        reloaded = reload_addon_modules()
+    except Exception as exc:
+        showWarning(f"Could not reload Guitarist modules:\n\n{exc}")
+        return
+
+    tooltip(f"Reloaded {len(reloaded)} Guitarist module(s).")
+    open_chord_generator(mw)
 
 
 def _add_editor_button(buttons: List[str], editor: Any) -> None:
@@ -540,6 +739,11 @@ def register_hooks() -> None:
     action = QAction("Guitarist Chord Generator", mw)
     qconnect(action.triggered, _on_tools_action)
     mw.form.menuTools.addAction(action)
+
+    if dev_reload_enabled():
+        reload_action = QAction("Reload Guitarist Add-on", mw)
+        qconnect(reload_action.triggered, _on_dev_reload_action)
+        mw.form.menuTools.addAction(reload_action)
 
     gui_hooks.editor_did_init_buttons.append(_add_editor_button)
     profile_hook = getattr(gui_hooks, "profile_did_open", None)

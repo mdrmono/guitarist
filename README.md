@@ -11,7 +11,7 @@ synthesized chord audio, and two review cards.
 - Built-in common chord voicings for standard tuning.
 - Offline SVG fretboard diagrams.
 - Offline WAV synthesis for strummed chord audio.
-- Dedicated `Guitarist` deck and `Guitarist Chord` note type.
+- Configurable destination deck and managed `Guitarist Chord` note type.
 
 ## Supported v1 chord types
 
@@ -44,3 +44,13 @@ rsync -a --delete \
 ```
 
 Restart Anki after copying the files.
+
+For faster Python-only iteration, start Anki with a development reload action:
+
+```bash
+GUITARIST_DEV_RELOAD=1 anki
+```
+
+This adds Tools > Reload Guitarist Add-on, which reloads the add-on modules and
+opens a fresh generator dialog. Restart Anki for hook registration, startup, or
+already-constructed Qt widget changes that do not refresh cleanly.

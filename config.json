@@ -1,4 +1,6 @@
 {
   "deckName": "Guitarist",
-  "noteTypeName": "Guitarist Chord"
+  "noteTypeName": "Guitarist Chord",
+  "clearInputAfterAdd": true,
+  "keepUnsupportedAfterAdd": true
 }
