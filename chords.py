@@ -84,7 +84,7 @@ VoicingDefinition = Tuple[Sequence[Fret], Sequence[Fret], str]
 
 
 class UnsupportedChord(ValueError):
-    """Raised when a chord symbol can not be mapped to a v1 voicing."""
+    """Raised when a chord symbol can not be mapped to a built-in voicing."""
 
 
 @dataclass(frozen=True)
@@ -225,7 +225,7 @@ def parse_chord(symbol: str) -> ChordSymbol:
         bass=bass,
     )
     if parsed.bass:
-        raise UnsupportedChord("Slash chords are not supported in v1")
+        raise UnsupportedChord("Slash chords are not supported")
     return parsed
 
 

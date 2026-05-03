@@ -1,19 +1,20 @@
 # Guitarist
 
-Guitarist is an Anki add-on for generating guitar chord study notes. Version 1
-lets a user type chord names, then creates Anki notes with a fretboard diagram,
-synthesized chord audio, and two review cards.
+Guitarist is an Anki add-on for generating guitar chord study notes. Type one
+chord or paste a batch, then create Anki notes with fretboard diagrams,
+fingerings, generated strum audio, and two review cards.
 
 ## Features
 
 - Tools menu chord generator dialog.
 - Editor toolbar entry point.
+- Batch chord input with validation and preview navigation.
 - Built-in common chord voicings for standard tuning.
 - Offline SVG fretboard diagrams.
 - Offline WAV synthesis for strummed chord audio.
 - Configurable destination deck and managed `Guitarist Chord` note type.
 
-## Supported v1 chord types
+## Supported Chords
 
 Major, minor, dominant seventh, major seventh, minor seventh, suspended fourth,
 and power chords are supported with common open voicings and movable E/A-shape
@@ -25,27 +26,39 @@ Examples:
 C, Am, F#, Bb7, Gmaj7, Dsus4
 ```
 
-## Local development
+## Repository Layout
 
-Run the core tests:
+```text
+__init__.py          Anki add-on entry point
+dialog.py            Qt dialog and Anki UI hooks
+anki_integration.py  Deck, note type, media, and note creation
+chords.py            Chord parsing, suggestions, and voicing lookup
+diagram.py           SVG fretboard rendering
+audio.py             WAV synthesis
+generator.py         Chord asset preparation
+settings.py          Config defaults and validation
+dev_reload.py        Development-only module reload helper
+tests/               Unit tests
+scripts/             Local development scripts
+```
+
+## Development
+
+Run the tests:
 
 ```bash
 python3 -m unittest
 ```
 
-To test in Anki, copy a development build into Anki's `addons21` directory:
+Install the working tree into Anki:
 
 ```bash
-rsync -a --delete \
-  --exclude .git \
-  --exclude __pycache__ \
-  --exclude tests \
-  ./ ~/.local/share/Anki2/addons21/guitarist/
+scripts/install_dev.sh
 ```
 
-Restart Anki after copying the files.
+Restart Anki after copying files into `addons21`.
 
-For faster Python-only iteration, start Anki with a development reload action:
+For faster Python-only iteration, start Anki with the development reload action:
 
 ```bash
 GUITARIST_DEV_RELOAD=1 anki

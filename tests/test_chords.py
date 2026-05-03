@@ -25,7 +25,7 @@ class ChordParsingTests(unittest.TestCase):
     def test_batch_input_split(self) -> None:
         self.assertEqual(parse_chord_inputs("C, Am\nG7; Dsus4"), ["C", "Am", "G7", "Dsus4"])
 
-    def test_slash_chords_are_not_v1(self) -> None:
+    def test_slash_chords_are_not_supported(self) -> None:
         with self.assertRaises(UnsupportedChord):
             parse_chord("C/G")
 
