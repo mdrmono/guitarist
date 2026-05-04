@@ -7,7 +7,7 @@ from tests.context import setup_import_path
 
 setup_import_path()
 
-from guitarist.dev_reload import DEV_RELOAD_ENV, dev_reload_enabled
+from guitarist.dev.reload import DEV_RELOAD_ENV, dev_reload_enabled
 
 
 class DevReloadTests(unittest.TestCase):

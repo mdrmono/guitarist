@@ -30,16 +30,15 @@ C, Am, F#, Bb7, Gmaj7, Dsus4
 
 ```text
 __init__.py          Anki add-on entry point
-dialog.py            Qt dialog and Anki UI hooks
-anki_integration.py  Deck, note type, media, and note creation
-chords.py            Chord parsing, suggestions, and voicing lookup
-diagram.py           SVG fretboard rendering
-audio.py             WAV synthesis
-generator.py         Chord asset preparation
-settings.py          Config defaults and validation
-dev_reload.py        Development-only module reload helper
+core/                Parsing, voicing lookup, rendering, audio, settings
+integration/         Deck, note type, media, and note creation
+ui/                  Qt dialog and Anki UI hooks
+dev/                 Development-only reload helper
 tests/               Unit tests
 scripts/             Local development scripts
+manifest.json        Anki add-on metadata
+config.json          Default add-on configuration
+config.md            Configuration help shown in Anki
 ```
 
 ## Development

@@ -6,7 +6,11 @@ from tests.context import setup_import_path
 
 setup_import_path()
 
-from guitarist.settings import GuitaristSettings, apply_settings_to_config, settings_from_config
+from guitarist.core.settings import (
+    GuitaristSettings,
+    apply_settings_to_config,
+    settings_from_config,
+)
 
 
 class SettingsTests(unittest.TestCase):

@@ -6,7 +6,7 @@ from tests.context import setup_import_path
 
 setup_import_path()
 
-from guitarist.chords import (
+from guitarist.core.chords import (
     UnsupportedChord,
     lookup_voicing,
     parse_chord,

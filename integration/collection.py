@@ -6,9 +6,9 @@ import html
 from dataclasses import dataclass
 from typing import Any, List, Sequence, Tuple
 
-from .chords import UnsupportedChord, lookup_voicing, parse_chord_inputs
-from .generator import ChordAsset, UnsupportedInput, prepare_generation
-from .settings import DEFAULT_DECK_NAME, DEFAULT_NOTE_TYPE_NAME
+from ..core.chords import UnsupportedChord, lookup_voicing, parse_chord_inputs
+from ..core.generator import ChordAsset, UnsupportedInput, prepare_generation
+from ..core.settings import DEFAULT_DECK_NAME, DEFAULT_NOTE_TYPE_NAME
 
 
 DECK_NAME = DEFAULT_DECK_NAME

@@ -11,12 +11,13 @@ from typing import List
 DEV_RELOAD_ENV = "GUITARIST_DEV_RELOAD"
 
 _MODULE_RELOAD_ORDER = (
-    "chords",
-    "diagram",
-    "audio",
-    "generator",
-    "anki_integration",
-    "dialog",
+    "core.chords",
+    "core.diagram",
+    "core.audio",
+    "core.generator",
+    "core.settings",
+    "integration.collection",
+    "ui.dialog",
 )
 
 
@@ -30,13 +31,13 @@ def dev_reload_enabled() -> bool:
 
 
 def reload_addon_modules() -> List[str]:
-    package_name = __package__
+    package_name = __package__.split(".", 1)[0] if __package__ else ""
     if not package_name:
         raise RuntimeError("Can not determine Guitarist package name")
 
     reloaded: List[str] = []
-    for module_basename in _MODULE_RELOAD_ORDER:
-        module_name = f"{package_name}.{module_basename}"
+    for module_path in _MODULE_RELOAD_ORDER:
+        module_name = f"{package_name}.{module_path}"
         module = sys.modules.get(module_name)
         if module is None:
             module = importlib.import_module(module_name)

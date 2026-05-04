@@ -33,18 +33,19 @@ from aqt.qt import (  # type: ignore
 )
 from aqt.utils import qconnect, showInfo, showWarning, tooltip  # type: ignore
 
-from .anki_integration import (
+from ..integration.collection import (
     AddChordsResult,
     add_chord_notes,
     preview_inputs,
     refresh_existing_notetype,
 )
-from .chords import Voicing, lookup_voicing, parse_chord_inputs, suggest_chords
-from .dev_reload import dev_reload_enabled, reload_addon_modules
-from .settings import GuitaristSettings, apply_settings_to_config, settings_from_config
+from ..core.chords import Voicing, lookup_voicing, parse_chord_inputs, suggest_chords
+from ..core.settings import GuitaristSettings, apply_settings_to_config, settings_from_config
+from ..dev.reload import dev_reload_enabled, reload_addon_modules
 
 
 ADDON_REPO_URL = "https://github.com/mdrmono/guitarist"
+ADDON_PACKAGE = __name__.split(".", 1)[0]
 
 
 def _align_center() -> Any:
@@ -264,16 +265,16 @@ QLabel#PreviewCounter {
 
 def _load_addon_settings() -> GuitaristSettings:
     try:
-        config = mw.addonManager.getConfig(__name__)
+        config = mw.addonManager.getConfig(ADDON_PACKAGE)
     except Exception:
         config = None
     return settings_from_config(config)
 
 
 def _write_addon_settings(settings: GuitaristSettings) -> None:
-    config = mw.addonManager.getConfig(__name__)
+    config = mw.addonManager.getConfig(ADDON_PACKAGE)
     updated = apply_settings_to_config(config, settings)
-    mw.addonManager.writeConfig(__name__, updated)
+    mw.addonManager.writeConfig(ADDON_PACKAGE, updated)
 
 
 def _deck_names() -> List[str]:

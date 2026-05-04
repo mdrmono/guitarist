@@ -8,9 +8,9 @@ from tests.context import setup_import_path
 
 setup_import_path()
 
-from guitarist.audio import generate_chord_wav
-from guitarist.diagram import render_chord_svg
-from guitarist.generator import prepare_generation
+from guitarist.core.audio import generate_chord_wav
+from guitarist.core.diagram import render_chord_svg
+from guitarist.core.generator import prepare_generation
 
 
 class MediaGenerationTests(unittest.TestCase):

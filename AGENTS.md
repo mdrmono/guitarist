@@ -2,20 +2,32 @@
 
 ## Project Structure & Module Organization
 
-This repository is an Anki add-on implemented as a flat Python package. Anki loads `__init__.py`, which registers UI hooks from `dialog.py`. Core logic is split by responsibility: `chords.py` parses chord names and selects voicings, `diagram.py` renders SVG fretboard diagrams, `audio.py` synthesizes WAV audio, `generator.py` prepares chord assets, and `anki_integration.py` creates decks, note types, media, and notes through Anki APIs. Add-on metadata and defaults live in `manifest.json`, `config.json`, and `config.md`. Tests live under `tests/`.
+This repository is an Anki add-on package. Anki loads root `__init__.py`, which
+registers UI hooks from `ui/dialog.py`. Core logic lives under `core/`:
+`chords.py` parses chord names and selects voicings, `diagram.py` renders SVG
+fretboard diagrams, `audio.py` synthesizes WAV audio, `generator.py` prepares
+chord assets, and `settings.py` validates add-on config. Anki collection work
+lives in `integration/collection.py`, development-only helpers live in `dev/`, add-on
+metadata and defaults live in `manifest.json`, `config.json`, and `config.md`,
+and tests live under `tests/`.
 
 ## Build, Test, and Development Commands
 
 - `python3 -m unittest`: run the full unit test suite.
-- `python3 -m py_compile __init__.py chords.py diagram.py audio.py generator.py anki_integration.py dialog.py`: catch syntax/import-time issues in source files.
-- `rsync -a --delete --exclude .git --exclude __pycache__ --exclude tests ./ ~/.local/share/Anki2/addons21/guitarist/`: install a copied development build into Anki.
+- `python3 -m py_compile __init__.py core/*.py integration/*.py ui/*.py dev/*.py`: catch syntax/import-time issues in source files.
+- `scripts/install_dev.sh`: install a copied development build into Anki.
 - `anki --version`: confirm the local Anki executable and version.
 
 Restart Anki after copying files into `addons21`.
 
 ## Coding Style & Naming Conventions
 
-Use Python 3.9+ with 4-space indentation, type hints, and dataclasses for structured values. Keep Anki-specific imports isolated to UI/integration modules so core modules remain testable without Anki installed. Prefer small pure functions in `chords.py`, `diagram.py`, `audio.py`, and `generator.py`. Use `snake_case` for functions and variables, `PascalCase` for classes, and uppercase constants for shared configuration.
+Use Python 3.9+ with 4-space indentation, type hints, and dataclasses for
+structured values. Keep Anki-specific imports isolated to `ui/` and
+`integration/` so core modules remain testable without Anki installed. Prefer small pure
+functions in `core/chords.py`, `core/diagram.py`, `core/audio.py`, and
+`core/generator.py`. Use `snake_case` for functions and variables,
+`PascalCase` for classes, and uppercase constants for shared configuration.
 
 ## Testing Guidelines
 
@@ -30,7 +42,11 @@ Before pushing to GitHub, run tests and a secret scan:
 - `python3 -m unittest`
 - `gitleaks detect --source . --redact`
 
-Do not push if `gitleaks` reports a finding. Remove the secret, rotate it if it was real, and rerun the scan. Pull requests should include a short summary, test results, screenshots for UI changes, and any manual Anki smoke-test notes. Mention affected Anki versions when changing `dialog.py` or `anki_integration.py`.
+Do not push if `gitleaks` reports a finding. Remove the secret, rotate it if it
+was real, and rerun the scan. Pull requests should include a short summary,
+test results, screenshots for UI changes, and any manual Anki smoke-test notes.
+Mention affected Anki versions when changing `ui/dialog.py` or
+`integration/collection.py`.
 
 ## GitHub Workflow
 

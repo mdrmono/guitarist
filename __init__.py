@@ -12,7 +12,7 @@ def _register_when_loaded() -> None:
     if mw is None:
         return
 
-    from .dialog import register_hooks
+    from .ui.dialog import register_hooks
 
     register_hooks()
 
