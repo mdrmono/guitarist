@@ -136,13 +136,17 @@ def ensure_deck(col: Any, deck_name: str = DECK_NAME) -> Any:
     return col.decks.id(deck_name.strip() or DECK_NAME)
 
 
-def ensure_notetype(col: Any) -> Tuple[Any, Any]:
+def ensure_notetype(
+    col: Any,
+    note_type_name: str = NOTE_TYPE_NAME,
+) -> Tuple[Any, Any]:
     models = col.models
-    notetype = models.by_name(NOTE_TYPE_NAME)
+    resolved_name = note_type_name.strip() or NOTE_TYPE_NAME
+    notetype = models.by_name(resolved_name)
     changes = None
 
     if notetype is None:
-        notetype = models.new(NOTE_TYPE_NAME)
+        notetype = models.new(resolved_name)
         notetype["css"] = CARD_CSS
         notetype["sortf"] = 0
         for field_name in FIELDS:
@@ -153,7 +157,7 @@ def ensure_notetype(col: Any) -> Tuple[Any, Any]:
             template["afmt"] = afmt
             models.add_template(notetype, template)
         changes = _extract_changes(models.add(notetype))
-        refreshed = models.by_name(NOTE_TYPE_NAME)
+        refreshed = models.by_name(resolved_name)
         return refreshed or notetype, changes
 
     changed = False
@@ -186,15 +190,19 @@ def ensure_notetype(col: Any) -> Tuple[Any, Any]:
             changes = _extract_changes(models.update_dict(notetype))
         else:
             changes = _extract_changes(models.save(notetype))
-        refreshed = models.by_name(NOTE_TYPE_NAME)
+        refreshed = models.by_name(resolved_name)
         return refreshed or notetype, changes
 
     return notetype, changes
 
 
-def refresh_existing_notetype(col: Any) -> Any:
+def refresh_existing_notetype(
+    col: Any,
+    note_type_name: str = NOTE_TYPE_NAME,
+) -> Any:
     models = col.models
-    notetype = models.by_name(NOTE_TYPE_NAME)
+    resolved_name = note_type_name.strip() or NOTE_TYPE_NAME
+    notetype = models.by_name(resolved_name)
     if notetype is None:
         return _empty_changes()
 
@@ -242,13 +250,14 @@ def add_chord_notes(
     col: Any,
     input_text: str,
     deck_name: str = DECK_NAME,
+    note_type_name: str = NOTE_TYPE_NAME,
 ) -> AddChordsResult:
     prepared = prepare_generation(input_text)
     changes = None
 
     if prepared.assets:
         deck_id = ensure_deck(col, deck_name)
-        notetype, model_changes = ensure_notetype(col)
+        notetype, model_changes = ensure_notetype(col, note_type_name)
         changes = model_changes
     else:
         deck_id = None

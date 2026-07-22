@@ -26,6 +26,20 @@ Examples:
 C, Am, F#, Bb7, Gmaj7, Dsus4
 ```
 
+## Installation
+
+Guitarist has been tested with Anki 24.06.2.
+
+1. Download the `.ankiaddon` file from the
+   [latest GitHub release](https://github.com/mdrmono/guitarist/releases/latest).
+2. Open the downloaded file with Anki and confirm the installation.
+3. Restart Anki, then select **Tools > Guitarist Chord Generator**.
+
+Enter one chord or paste a comma- or line-separated batch, preview the generated
+voicings, and choose **Add Card**. The Options tab lets you select the destination
+deck and control what happens to the input after notes are created. Advanced
+defaults, including the managed note type name, are documented in `config.md`.
+
 ## Repository Layout
 
 ```text
@@ -57,6 +71,14 @@ scripts/install_dev.sh
 
 Restart Anki after copying files into `addons21`.
 
+Build the distributable add-on package:
+
+```bash
+scripts/build_addon.sh
+```
+
+The package is written to `dist/` with its version read from `pyproject.toml`.
+
 For faster Python-only iteration, start Anki with the development reload action:
 
 ```bash
@@ -66,3 +88,7 @@ GUITARIST_DEV_RELOAD=1 anki
 This adds Tools > Reload Guitarist Add-on, which reloads the add-on modules and
 opens a fresh generator dialog. Restart Anki for hook registration, startup, or
 already-constructed Qt widget changes that do not refresh cleanly.
+
+## License
+
+Guitarist is available under the [MIT License](LICENSE).

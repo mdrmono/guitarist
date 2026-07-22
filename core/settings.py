@@ -10,6 +10,7 @@ DEFAULT_DECK_NAME = "Guitarist"
 DEFAULT_NOTE_TYPE_NAME = "Guitarist Chord"
 
 DECK_NAME_KEY = "deckName"
+NOTE_TYPE_NAME_KEY = "noteTypeName"
 CLEAR_INPUT_KEY = "clearInputAfterAdd"
 KEEP_UNSUPPORTED_KEY = "keepUnsupportedAfterAdd"
 
@@ -17,6 +18,7 @@ KEEP_UNSUPPORTED_KEY = "keepUnsupportedAfterAdd"
 @dataclass(frozen=True)
 class GuitaristSettings:
     deck_name: str = DEFAULT_DECK_NAME
+    note_type_name: str = DEFAULT_NOTE_TYPE_NAME
     clear_input_after_add: bool = True
     keep_unsupported_after_add: bool = True
 
@@ -26,6 +28,13 @@ def _clean_deck_name(value: Any) -> str:
         return DEFAULT_DECK_NAME
     value = value.strip()
     return value or DEFAULT_DECK_NAME
+
+
+def _clean_note_type_name(value: Any) -> str:
+    if not isinstance(value, str):
+        return DEFAULT_NOTE_TYPE_NAME
+    value = value.strip()
+    return value or DEFAULT_NOTE_TYPE_NAME
 
 
 def _clean_bool(value: Any, default: bool) -> bool:
@@ -39,6 +48,7 @@ def settings_from_config(config: Mapping[str, Any] | None) -> GuitaristSettings:
         config = {}
     return GuitaristSettings(
         deck_name=_clean_deck_name(config.get(DECK_NAME_KEY)),
+        note_type_name=_clean_note_type_name(config.get(NOTE_TYPE_NAME_KEY)),
         clear_input_after_add=_clean_bool(config.get(CLEAR_INPUT_KEY), True),
         keep_unsupported_after_add=_clean_bool(config.get(KEEP_UNSUPPORTED_KEY), True),
     )
@@ -50,6 +60,7 @@ def apply_settings_to_config(
 ) -> dict[str, Any]:
     updated = dict(config or {})
     updated[DECK_NAME_KEY] = _clean_deck_name(settings.deck_name)
+    updated[NOTE_TYPE_NAME_KEY] = _clean_note_type_name(settings.note_type_name)
     updated[CLEAR_INPUT_KEY] = settings.clear_input_after_add
     updated[KEEP_UNSUPPORTED_KEY] = settings.keep_unsupported_after_add
     return updated

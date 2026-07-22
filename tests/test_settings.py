@@ -18,6 +18,7 @@ class SettingsTests(unittest.TestCase):
         settings = settings_from_config(None)
 
         self.assertEqual(settings.deck_name, "Guitarist")
+        self.assertEqual(settings.note_type_name, "Guitarist Chord")
         self.assertTrue(settings.clear_input_after_add)
         self.assertTrue(settings.keep_unsupported_after_add)
 
@@ -26,18 +27,25 @@ class SettingsTests(unittest.TestCase):
 
         self.assertEqual(settings.deck_name, "Guitarist")
 
+    def test_settings_clean_blank_note_type_name(self) -> None:
+        settings = settings_from_config({"noteTypeName": "  "})
+
+        self.assertEqual(settings.note_type_name, "Guitarist Chord")
+
     def test_apply_settings_preserves_unknown_config(self) -> None:
-        config = {"noteTypeName": "Guitarist Chord"}
+        config = {"futureOption": 42}
         settings = GuitaristSettings(
             deck_name="Practice",
+            note_type_name="My Guitar Chords",
             clear_input_after_add=False,
             keep_unsupported_after_add=True,
         )
 
         updated = apply_settings_to_config(config, settings)
 
-        self.assertEqual(updated["noteTypeName"], "Guitarist Chord")
+        self.assertEqual(updated["futureOption"], 42)
         self.assertEqual(updated["deckName"], "Practice")
+        self.assertEqual(updated["noteTypeName"], "My Guitar Chords")
         self.assertFalse(updated["clearInputAfterAdd"])
         self.assertTrue(updated["keepUnsupportedAfterAdd"])
 

@@ -468,6 +468,7 @@ class ChordGeneratorDialog(QDialog):
     def current_options_settings(self) -> GuitaristSettings:
         return GuitaristSettings(
             deck_name=self.deck_selector.currentText().strip(),
+            note_type_name=self.settings.note_type_name,
             clear_input_after_add=self.clear_input_checkbox.isChecked(),
             keep_unsupported_after_add=self.keep_unsupported_checkbox.isChecked(),
         )
@@ -659,7 +660,12 @@ class ChordGeneratorDialog(QDialog):
 
         CollectionOp(
             parent=self,
-            op=lambda col: add_chord_notes(col, text, deck_name=settings.deck_name),
+            op=lambda col: add_chord_notes(
+                col,
+                text,
+                deck_name=settings.deck_name,
+                note_type_name=settings.note_type_name,
+            ),
         ).success(on_success).failure(on_failure).run_in_background(initiator=self)
 
 
@@ -722,9 +728,11 @@ def _refresh_existing_cards(*args: Any) -> None:
     if getattr(mw, "col", None) is None:
         return
     try:
-        CollectionOp(parent=mw, op=lambda col: refresh_existing_notetype(col)).run_in_background(
-            initiator=mw
-        )
+        settings = _load_addon_settings()
+        CollectionOp(
+            parent=mw,
+            op=lambda col: refresh_existing_notetype(col, settings.note_type_name),
+        ).run_in_background(initiator=mw)
     except Exception:
         pass
 
