@@ -21,6 +21,8 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(settings.note_type_name, "Guitarist Chord")
         self.assertTrue(settings.clear_input_after_add)
         self.assertTrue(settings.keep_unsupported_after_add)
+        self.assertEqual(settings.sample_bank_path, "")
+        self.assertEqual(settings.strum_speed, "Fast")
 
     def test_settings_clean_blank_deck_name(self) -> None:
         settings = settings_from_config({"deckName": "  "})
@@ -39,6 +41,8 @@ class SettingsTests(unittest.TestCase):
             note_type_name="My Guitar Chords",
             clear_input_after_add=False,
             keep_unsupported_after_add=True,
+            sample_bank_path=" /tmp/guitar-samples ",
+            strum_speed="medium",
         )
 
         updated = apply_settings_to_config(config, settings)
@@ -48,6 +52,13 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(updated["noteTypeName"], "My Guitar Chords")
         self.assertFalse(updated["clearInputAfterAdd"])
         self.assertTrue(updated["keepUnsupportedAfterAdd"])
+        self.assertEqual(updated["sampleBankPath"], "/tmp/guitar-samples")
+        self.assertEqual(updated["strumSpeed"], "Medium")
+
+    def test_invalid_strum_speed_uses_default(self) -> None:
+        settings = settings_from_config({"strumSpeed": "ludicrous"})
+
+        self.assertEqual(settings.strum_speed, "Fast")
 
 
 if __name__ == "__main__":

@@ -40,7 +40,13 @@ from ..integration.collection import (
     refresh_existing_notetype,
 )
 from ..core.chords import Voicing, lookup_voicing, parse_chord_inputs, suggest_chords
-from ..core.settings import GuitaristSettings, apply_settings_to_config, settings_from_config
+from ..core.settings import (
+    DEFAULT_STRUM_SPEED,
+    STRUM_SPEED_DELAYS,
+    GuitaristSettings,
+    apply_settings_to_config,
+    settings_from_config,
+)
 from ..dev.reload import dev_reload_enabled, reload_addon_modules
 
 
@@ -396,6 +402,28 @@ class ChordGeneratorDialog(QDialog):
         deck_help.setWordWrap(True)
         options_layout.addWidget(deck_help)
 
+        options_layout.addWidget(QLabel("Primary strumming speed"))
+        self.strum_speed_selector = QComboBox()
+        for speed in STRUM_SPEED_DELAYS:
+            self.strum_speed_selector.addItem(speed, speed)
+        selected_speed_index = self.strum_speed_selector.findData(
+            self.settings.strum_speed
+        )
+        if selected_speed_index < 0:
+            selected_speed_index = self.strum_speed_selector.findData(
+                DEFAULT_STRUM_SPEED
+            )
+        self.strum_speed_selector.setCurrentIndex(selected_speed_index)
+        options_layout.addWidget(self.strum_speed_selector)
+
+        speed_help = QLabel(
+            "Each new card also receives a separate note-by-note slow strum "
+            "at 500 ms between strings."
+        )
+        speed_help.setObjectName("OptionHelp")
+        speed_help.setWordWrap(True)
+        options_layout.addWidget(speed_help)
+
         self.clear_input_checkbox = QCheckBox("Clear chord input after adding cards")
         self.clear_input_checkbox.setChecked(self.settings.clear_input_after_add)
         options_layout.addWidget(self.clear_input_checkbox)
@@ -471,6 +499,10 @@ class ChordGeneratorDialog(QDialog):
             note_type_name=self.settings.note_type_name,
             clear_input_after_add=self.clear_input_checkbox.isChecked(),
             keep_unsupported_after_add=self.keep_unsupported_checkbox.isChecked(),
+            sample_bank_path=self.settings.sample_bank_path,
+            strum_speed=str(
+                self.strum_speed_selector.currentData() or DEFAULT_STRUM_SPEED
+            ),
         )
 
     def save_options(self) -> bool:
@@ -665,6 +697,8 @@ class ChordGeneratorDialog(QDialog):
                 text,
                 deck_name=settings.deck_name,
                 note_type_name=settings.note_type_name,
+                sample_bank_path=settings.sample_bank_path,
+                strum_speed=settings.strum_speed,
             ),
         ).success(on_success).failure(on_failure).run_in_background(initiator=self)
 

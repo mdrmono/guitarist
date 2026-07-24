@@ -22,6 +22,7 @@ zip -q -r "$artifact" \
   config.md \
   manifest.json \
   LICENSE \
+  assets \
   core \
   dev \
   integration \

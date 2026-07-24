@@ -11,7 +11,10 @@ fingerings, generated strum audio, and two review cards.
 - Batch chord input with validation and preview navigation.
 - Built-in common chord voicings for standard tuning.
 - Offline SVG fretboard diagrams.
-- Offline WAV synthesis for strummed chord audio.
+- Offline physical-model WAV synthesis for realistic strummed chord audio.
+- Optional external 44.1 kHz WAV sample banks for recorded strummed chord audio.
+- Selectable primary strum speed plus a separate note-by-note slow recording.
+- Speed-specific custom playback icons on generated Anki cards.
 - Configurable destination deck and managed `Guitarist Chord` note type.
 
 ## Supported Chords
@@ -39,12 +42,15 @@ Enter one chord or paste a comma- or line-separated batch, preview the generated
 voicings, and choose **Add Card**. The Options tab lets you select the destination
 deck and control what happens to the input after notes are created. Advanced
 defaults, including the managed note type name, are documented in `config.md`.
+External recordings are not bundled; configure `sampleBankPath` to use a local
+sample bank and leave it blank to use Guitarist's built-in synthesizer.
 
 ## Repository Layout
 
 ```text
 __init__.py          Anki add-on entry point
 core/                Parsing, voicing lookup, rendering, audio, settings
+assets/icons/        Vector playback icons copied into Anki collection media
 integration/         Deck, note type, media, and note creation
 ui/                  Qt dialog and Anki UI hooks
 dev/                 Development-only reload helper

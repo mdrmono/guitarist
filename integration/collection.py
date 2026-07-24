@@ -4,16 +4,37 @@ from __future__ import annotations
 
 import html
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, List, Sequence, Tuple
 
 from ..core.chords import UnsupportedChord, lookup_voicing, parse_chord_inputs
 from ..core.generator import ChordAsset, UnsupportedInput, prepare_generation
-from ..core.settings import DEFAULT_DECK_NAME, DEFAULT_NOTE_TYPE_NAME
+from ..core.settings import (
+    DEFAULT_DECK_NAME,
+    DEFAULT_NOTE_TYPE_NAME,
+    DEFAULT_STRUM_SPEED,
+)
 
 
 DECK_NAME = DEFAULT_DECK_NAME
 NOTE_TYPE_NAME = DEFAULT_NOTE_TYPE_NAME
-FIELDS = ("Chord", "Voicing", "Diagram", "Audio", "Fingering", "Notes")
+FIELDS = (
+    "Chord",
+    "Voicing",
+    "Diagram",
+    "Audio",
+    "Fingering",
+    "Notes",
+    "Slow Audio",
+    "Strum Speed",
+)
+ICON_ASSET_DIR = Path(__file__).resolve().parent.parent / "assets" / "icons"
+ICON_MEDIA_FILES = {
+    "_guitarist_strum_fast.svg": "strum-fast.svg",
+    "_guitarist_strum_medium.svg": "strum-medium.svg",
+    "_guitarist_strum_slow.svg": "strum-slow.svg",
+    "_guitarist_strum_note_by_note.svg": "strum-note-by-note.svg",
+}
 
 CARD_TEMPLATES = (
     (
@@ -30,7 +51,18 @@ CARD_TEMPLATES = (
   <div class="answer chord-name">{{Chord}}</div>
   <div class="meta">{{Voicing}}</div>
   <div class="meta">Fingering: {{Fingering}}</div>
-  <div class="audio">{{Audio}}</div>
+  <div class="audio-set">
+    {{#Audio}}
+    <div class="audio-item audio-selected" data-strum-speed="{{Strum Speed}}">
+      {{Audio}}
+    </div>
+    {{/Audio}}
+    {{#Slow Audio}}
+    <div class="audio-item audio-note-by-note">
+      {{Slow Audio}}
+    </div>
+    {{/Slow Audio}}
+  </div>
 </div>
 """.strip(),
     ),
@@ -49,7 +81,18 @@ CARD_TEMPLATES = (
   <div class="meta">{{Voicing}}</div>
   <div class="meta">Fingering: {{Fingering}}</div>
   <div class="meta">Notes: {{Notes}}</div>
-  <div class="audio">{{Audio}}</div>
+  <div class="audio-set">
+    {{#Audio}}
+    <div class="audio-item audio-selected" data-strum-speed="{{Strum Speed}}">
+      {{Audio}}
+    </div>
+    {{/Audio}}
+    {{#Slow Audio}}
+    <div class="audio-item audio-note-by-note">
+      {{Slow Audio}}
+    </div>
+    {{/Slow Audio}}
+  </div>
 </div>
 """.strip(),
     ),
@@ -102,8 +145,53 @@ CARD_CSS = """
   font-size: 15px;
   line-height: 1.35;
 }
-.audio {
+.audio-set {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
   margin-top: 8px;
+}
+.audio-item {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+}
+.audio-item .replay-button {
+  background-color: #383838;
+  background-image: url("_guitarist_strum_fast.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 32px 32px;
+  border: 1px solid #4a4a4a;
+  border-radius: 9px;
+  box-sizing: border-box;
+  display: inline-block;
+  height: 44px;
+  min-height: 44px;
+  min-width: 52px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+  vertical-align: middle;
+  width: 52px;
+}
+.audio-item .replay-button:hover,
+.audio-item .replay-button:focus {
+  background-color: #414141;
+  border-color: #8d83ff;
+}
+.audio-item .replay-button svg,
+.audio-item .replay-button .playImage {
+  display: none;
+}
+.audio-selected[data-strum-speed="Medium"] .replay-button {
+  background-image: url("_guitarist_strum_medium.svg");
+}
+.audio-selected[data-strum-speed="Slow"] .replay-button {
+  background-image: url("_guitarist_strum_slow.svg");
+}
+.audio-note-by-note .replay-button {
+  background-image: url("_guitarist_strum_note_by_note.svg");
 }
 """.strip()
 
@@ -113,6 +201,7 @@ class CreatedChordNote:
     chord: str
     diagram_filename: str
     audio_filename: str
+    slow_audio_filename: str
 
 
 @dataclass
@@ -130,6 +219,14 @@ def _empty_changes() -> Any:
 
 def _extract_changes(result: Any) -> Any:
     return getattr(result, "changes", result)
+
+
+def _write_icon_media(col: Any) -> None:
+    for media_name, asset_name in ICON_MEDIA_FILES.items():
+        icon_data = (ICON_ASSET_DIR / asset_name).read_bytes()
+        written_name = col.media.write_data(media_name, icon_data)
+        if written_name != media_name:
+            raise ValueError(f"Could not install Guitarist icon media: {media_name}")
 
 
 def ensure_deck(col: Any, deck_name: str = DECK_NAME) -> Any:
@@ -206,7 +303,15 @@ def refresh_existing_notetype(
     if notetype is None:
         return _empty_changes()
 
+    _write_icon_media(col)
+
     changed = False
+    existing_fields = set(models.field_names(notetype))
+    for field_name in FIELDS:
+        if field_name not in existing_fields:
+            models.add_field(notetype, models.new_field(field_name))
+            changed = True
+
     template_by_name = {template["name"]: template for template in notetype["tmpls"]}
     for template_name, qfmt, afmt in CARD_TEMPLATES:
         template = template_by_name.get(template_name)
@@ -240,10 +345,17 @@ def _media_sound_tag(filename: str) -> str:
     return f"[sound:{filename}]"
 
 
-def _write_asset_media(col: Any, asset: ChordAsset) -> Tuple[str, str]:
-    diagram_name = col.media.write_data(asset.diagram_filename, asset.diagram_svg.encode("utf-8"))
+def _write_asset_media(col: Any, asset: ChordAsset) -> Tuple[str, str, str]:
+    diagram_name = col.media.write_data(
+        asset.diagram_filename,
+        asset.diagram_svg.encode("utf-8"),
+    )
     audio_name = col.media.write_data(asset.audio_filename, asset.audio_wav)
-    return diagram_name, audio_name
+    slow_audio_name = col.media.write_data(
+        asset.slow_audio_filename,
+        asset.slow_audio_wav,
+    )
+    return diagram_name, audio_name, slow_audio_name
 
 
 def add_chord_notes(
@@ -251,11 +363,14 @@ def add_chord_notes(
     input_text: str,
     deck_name: str = DECK_NAME,
     note_type_name: str = NOTE_TYPE_NAME,
+    sample_bank_path: str = "",
+    strum_speed: str = DEFAULT_STRUM_SPEED,
 ) -> AddChordsResult:
-    prepared = prepare_generation(input_text)
+    prepared = prepare_generation(input_text, sample_bank_path, strum_speed)
     changes = None
 
     if prepared.assets:
+        _write_icon_media(col)
         deck_id = ensure_deck(col, deck_name)
         notetype, model_changes = ensure_notetype(col, note_type_name)
         changes = model_changes
@@ -265,15 +380,22 @@ def add_chord_notes(
 
     created: List[CreatedChordNote] = []
     for asset in prepared.assets:
-        diagram_name, audio_name = _write_asset_media(col, asset)
+        diagram_name, audio_name, slow_audio_name = _write_asset_media(col, asset)
         note = col.new_note(notetype)
-        _apply_asset_to_note(note, asset, diagram_name, audio_name)
+        _apply_asset_to_note(
+            note,
+            asset,
+            diagram_name,
+            audio_name,
+            slow_audio_name,
+        )
         changes = _extract_changes(col.add_note(note, deck_id))
         created.append(
             CreatedChordNote(
                 chord=asset.voicing.chord,
                 diagram_filename=diagram_name,
                 audio_filename=audio_name,
+                slow_audio_filename=slow_audio_name,
             )
         )
 
@@ -284,11 +406,19 @@ def add_chord_notes(
     )
 
 
-def _apply_asset_to_note(note: Any, asset: ChordAsset, diagram_name: str, audio_name: str) -> None:
+def _apply_asset_to_note(
+    note: Any,
+    asset: ChordAsset,
+    diagram_name: str,
+    audio_name: str,
+    slow_audio_name: str,
+) -> None:
     note["Chord"] = asset.voicing.chord
     note["Voicing"] = asset.voicing.name
     note["Diagram"] = _media_image_tag(diagram_name)
     note["Audio"] = _media_sound_tag(audio_name)
+    note["Slow Audio"] = _media_sound_tag(slow_audio_name)
+    note["Strum Speed"] = asset.strum_speed
     note["Fingering"] = asset.voicing.fingering_text
     note["Notes"] = ", ".join(asset.voicing.note_names)
 

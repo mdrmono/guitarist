@@ -2,5 +2,7 @@
   "deckName": "Guitarist",
   "noteTypeName": "Guitarist Chord",
   "clearInputAfterAdd": true,
-  "keepUnsupportedAfterAdd": true
+  "keepUnsupportedAfterAdd": true,
+  "sampleBankPath": "",
+  "strumSpeed": "Fast"
 }
