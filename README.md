@@ -4,6 +4,8 @@ Guitarist is an Anki add-on for generating guitar chord study notes. Type one
 chord or paste a batch, then create Anki notes with fretboard diagrams,
 fingerings, generated strum audio, and two review cards.
 
+![Guitarist chord generator](screenshots/guitarist-generator.png)
+
 ## Features
 
 - Tools menu chord generator dialog.
@@ -44,22 +46,6 @@ deck and control what happens to the input after notes are created. Advanced
 defaults, including the managed note type name, are documented in `config.md`.
 External recordings are not bundled; configure `sampleBankPath` to use a local
 sample bank and leave it blank to use Guitarist's built-in synthesizer.
-
-## Repository Layout
-
-```text
-__init__.py          Anki add-on entry point
-core/                Parsing, voicing lookup, rendering, audio, settings
-assets/icons/        Vector playback icons copied into Anki collection media
-integration/         Deck, note type, media, and note creation
-ui/                  Qt dialog and Anki UI hooks
-dev/                 Development-only reload helper
-tests/               Unit tests
-scripts/             Local development scripts
-manifest.json        Anki add-on metadata
-config.json          Default add-on configuration
-config.md            Configuration help shown in Anki
-```
 
 ## Development
 
