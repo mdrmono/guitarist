@@ -4,7 +4,9 @@ Guitarist is an Anki add-on for generating guitar chord study notes. Type one
 chord or paste a batch, then create Anki notes with fretboard diagrams,
 fingerings, generated strum audio, and two review cards.
 
-![Guitarist chord generator](screenshots/guitarist-generator.png)
+<p align="center">
+  <img src="screenshots/guitarist-generator.png" alt="Guitarist chord generator" width="748">
+</p>
 
 ## Features
 
