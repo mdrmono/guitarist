@@ -35,12 +35,20 @@ C, Am, F#, Bb7, Gmaj7, Dsus4
 
 ## Installation
 
-Guitarist has been tested with Anki 24.06.2.
+Guitarist has been tested with Anki 24.06.2 and, on Linux, Anki 26.09.3.
+The `v0.2.0` release package installed on Anki 26.09.3, opened the chord
+generator, and created a chord note.
 
 1. Download the `.ankiaddon` file from the
    [latest GitHub release](https://github.com/mdrmono/guitarist/releases/latest).
-2. Open the downloaded file with Anki and confirm the installation.
+2. In Anki, select **Tools > Add-ons > Install from file**, choose the downloaded
+   `.ankiaddon` file, and confirm the installation. The **Get Add-ons** dialog
+   accepts AnkiWeb add-on codes, not GitHub URLs.
 3. Restart Anki, then select **Tools > Guitarist Chord Generator**.
+
+If installation fails, include the exact error message, your operating system,
+Anki version, and whether you used the `.ankiaddon` file from the release when
+reporting it in a [GitHub issue](https://github.com/mdrmono/guitarist/issues).
 
 Enter one chord or paste a comma- or line-separated batch, preview the generated
 voicings, and choose **Add Card**. The Options tab lets you select the destination
