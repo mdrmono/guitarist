@@ -28,6 +28,8 @@ jobs:
             python: '3.13'
           - os: macos-15-intel
             python: '3.13'
+          - os: windows-2025
+            python: '3.13'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -37,11 +39,16 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Unit and native installer tests
         run: python -m unittest -v
-      - name: Python and shell syntax
+      - name: Python syntax
+        run: python -m compileall -q __init__.py core integration ui dev scripts tests
+      - name: Shell syntax
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
-          python -m py_compile __init__.py core/*.py integration/*.py ui/*.py dev/*.py scripts/smoke_anki.py
           bash -n scripts/install_dev.sh scripts/build_addon.sh
       - name: Build add-on
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           scripts/build_addon.sh
           mkdir -p output/ci
@@ -53,7 +60,7 @@ jobs:
         if: runner.os == 'macOS'
         run: python scripts/smoke_anki.py --require-macos
       - name: Upload build and smoke-test evidence
-        if: always()
+        if: always() && runner.os != 'Windows'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: checks-${{ matrix.os }}-python-${{ matrix.python }}
