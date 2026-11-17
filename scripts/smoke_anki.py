@@ -57,16 +57,24 @@ def exercise_anki(base: Path, output: Path) -> int:
         if state["stage"] == "finished":
             return
         timer.stop()
+        result["last_stage"] = state["stage"]
         state["stage"] = "finished"
         state["exit_code"] = 1 if error else 0
         result["status"] = "failed" if error else "passed"
         if error:
             result["error"] = error
+            result["visible_windows"] = []
+            for index, widget in enumerate(QApplication.topLevelWidgets()):
+                if widget.isVisible():
+                    result["visible_windows"].append(widget.windowTitle())
+                    widget.grab().save(str(output / f"failure-{index}.png"))
         (output / "result.json").write_text(json.dumps(result, indent=2) + "\n")
         print(json.dumps(result), flush=True)
         if dialog is not None:
             dialog.reject()
-        QTimer.singleShot(0, lambda: app.exit(state["exit_code"]))
+        # Let Anki close its collection, media server and WebEngine views in
+        # their normal order instead of tearing down a live Qt application.
+        QTimer.singleShot(0, aqt.mw.unloadProfileAndExit)
 
     def advance() -> None:
         nonlocal dialog
@@ -106,7 +114,9 @@ def exercise_anki(base: Path, output: Path) -> int:
                 state["stage"] = "note"
                 dialog.create_button.click()
             elif state["stage"] == "note":
-                if not dialog.create_button.isEnabled() or dialog.input.toPlainText():
+                # Successful creation clears the input and therefore disables
+                # Add Card again. Wait for that callback, then check saved data.
+                if dialog.input.toPlainText():
                     return
                 col = aqt.mw.col
                 note_ids = col.find_notes('note:"Guitarist Chord"')
@@ -133,8 +143,6 @@ def exercise_anki(base: Path, output: Path) -> int:
     timer.start(100)
     QTimer.singleShot(90_000, lambda: finish("Timed out waiting for " + state["stage"]))
     app.exec()
-    if aqt.mw.col is not None:
-        aqt.mw.col.close()
     return state["exit_code"]
 
 
