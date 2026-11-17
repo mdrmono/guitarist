@@ -21,7 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          # Python 3.9 binaries are available on this LTS image, unlike 26.04.
+          - os: ubuntu-22.04
             python: '3.9'
           - os: ubuntu-latest
             python: '3.13'
