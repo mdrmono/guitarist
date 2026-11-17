@@ -22,7 +22,7 @@ def exercise_anki(base: Path, output: Path) -> int:
     import anki.lang
     import aqt
     from aqt.profiles import ProfileManager
-    from aqt.qt import QApplication, QTimer, QT_VERSION_STR
+    from aqt.qt import QApplication, QMessageBox, QTimer, QT_VERSION_STR
 
     # Seed an isolated profile so startup does not wait for first-run dialogs.
     anki.lang.set_lang("en")
@@ -32,7 +32,8 @@ def exercise_anki(base: Path, output: Path) -> int:
     manager.create("Guitarist Smoke Test")
     manager.load("Guitarist Smoke Test")
     manager.meta["firstRun"] = False
-    manager.meta["suppressUpdate"] = True
+    manager.set_update_check(False)
+    manager.set_check_for_addon_updates(False)
     manager.profile["autoSync"] = False
     manager.save()
     manager.db.close()
@@ -79,6 +80,9 @@ def exercise_anki(base: Path, output: Path) -> int:
     def advance() -> None:
         nonlocal dialog
         try:
+            for widget in QApplication.topLevelWidgets():
+                if isinstance(widget, QMessageBox) and widget.isVisible():
+                    raise AssertionError("Unexpected Anki dialog: " + widget.text())
             if state["stage"] == "collection":
                 if aqt.mw.col is None or aqt.mw.state != "deckBrowser":
                     return
