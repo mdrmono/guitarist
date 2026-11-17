@@ -16,7 +16,9 @@ and tests live under `tests/`.
 - `python3 -m unittest`: run the full unit test suite.
 - `python3 -m py_compile __init__.py core/*.py integration/*.py ui/*.py dev/*.py`: catch syntax/import-time issues in source files.
 - `scripts/build_addon.sh`: build the versioned `.ankiaddon` package in `dist/`.
-- `scripts/install_dev.sh`: install a copied development build into Anki.
+- `python3 scripts/install_dev.py` (`py scripts/install_dev.py` on Windows):
+  install a copied development build into Anki. `scripts/install_dev.sh` remains
+  a Unix wrapper.
 - `anki --version`: confirm the local Anki executable and version.
 
 Restart Anki after copying files into `addons21`.

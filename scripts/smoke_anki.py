@@ -16,6 +16,8 @@ import uuid
 import wave
 from xml.etree import ElementTree
 
+from install_dev import default_target
+
 
 def exercise_anki(base: Path, output: Path) -> int:
     import anki
@@ -166,14 +168,16 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="guitarist-smoke-") as temporary:
         test_home = Path(temporary) / "home with spaces"
         test_home.mkdir()
-        data_path = (
-            "Library/Application Support/Anki2"
-            if platform.system() == "Darwin" else ".local/share/Anki2"
+        environment = dict(
+            os.environ, HOME=str(test_home), USERPROFILE=str(test_home),
+            APPDATA=str(test_home / "AppData" / "Roaming"),
         )
-        base = test_home / data_path
-        environment = dict(os.environ, HOME=str(test_home))
         environment.pop("ANKI_ADDON_TARGET", None)
-        subprocess.run(["bash", str(repo / "scripts/install_dev.sh")], env=environment, check=True)
+        base = default_target(environment).parent.parent
+        subprocess.run(
+            [sys.executable, str(repo / "scripts/install_dev.py")],
+            env=environment, check=True,
+        )
         installed = base / "addons21/guitarist/__init__.py"
         assert installed.read_bytes() == (repo / "__init__.py").read_bytes()
         output.mkdir(parents=True, exist_ok=True)

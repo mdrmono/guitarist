@@ -69,9 +69,9 @@ Run the tests:
 python3 -m unittest
 ```
 
-GitHub Actions runs the tests and development installer checks on Linux and
-macOS, including Python 3.9 on Linux. The macOS job also installs Anki 26.09.3,
-loads the add-on in a disposable profile, opens the generator through the Tools
+GitHub Actions runs the tests and native Python development installer checks on
+Windows, Linux and macOS, including Python 3.9 on Linux. The macOS job also
+installs Anki 26.09.3, loads the add-on in a disposable profile, opens the generator through the Tools
 menu, and creates a C-chord note with two cards and valid SVG/WAV media.
 Screenshots, smoke-test results, and built packages are retained as CI artifacts.
 
@@ -86,13 +86,34 @@ The smoke test uses a temporary home and Anki profile. Its evidence is written
 to `output/playwright/anki-smoke/`. CI adds `--require-macos` to verify that its
 macOS smoke test is running on a real macOS host.
 
-Install the working tree into Anki:
+Install the working tree into Anki with Python 3.9 or newer. On Windows, run:
 
-```bash
-scripts/install_dev.sh
+```powershell
+py scripts/install_dev.py
 ```
 
-Restart Anki after copying files into `addons21`.
+On Linux or macOS, run:
+
+```bash
+python3 scripts/install_dev.py
+```
+
+The default destinations are:
+
+- Windows: `%APPDATA%\Anki2\addons21\guitarist`
+- macOS: `~/Library/Application Support/Anki2/addons21/guitarist`
+- Linux: `~/.local/share/Anki2/addons21/guitarist`
+
+A nonempty `ANKI_ADDON_TARGET` overrides the OS default. You can also pass
+`--target "path with spaces"`, which takes precedence over the environment.
+The installer copies the working tree, removes obsolete installed code, and
+excludes tests, caches, virtual environments, build output and `.env` files.
+The existing `scripts/install_dev.sh` command remains available on Unix and
+delegates to the Python installer; `rsync` is no longer required.
+
+Restart Anki after installation. The installer refuses destinations that overlap
+the source checkout. For portable Anki or a custom data location, provide the
+matching add-on directory explicitly.
 
 Build the distributable add-on package:
 
