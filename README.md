@@ -69,6 +69,23 @@ Run the tests:
 python3 -m unittest
 ```
 
+GitHub Actions runs the tests and development installer checks on Linux and
+macOS, including Python 3.9 on Linux. The macOS job also installs Anki 26.09.3,
+loads the add-on in a disposable profile, opens the generator through the Tools
+menu, and creates a C-chord note with two cards and valid SVG/WAV media.
+Screenshots, smoke-test results, and built packages are retained as CI artifacts.
+
+To run the same Anki smoke test locally with Anki's `aqt` Python package and Qt
+dependencies installed:
+
+```bash
+python3 scripts/smoke_anki.py
+```
+
+The smoke test uses a temporary home and Anki profile. Its evidence is written
+to `output/playwright/anki-smoke/`. CI adds `--require-macos` to verify that its
+macOS smoke test is running on a real macOS host.
+
 Install the working tree into Anki:
 
 ```bash

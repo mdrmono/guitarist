@@ -20,6 +20,7 @@ venv/
 *.ankiaddon
 build/
 dist/
+output/
 
 # Local editor/OS state
 .codex
